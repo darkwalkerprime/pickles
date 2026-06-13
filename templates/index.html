@@ -1,0 +1,2619 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Pickles</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body { 
+            margin: 0;
+            background: #141414; text-align: center; color: #fff; 
+            font-family: system-ui, sans-serif; user-select: none; -webkit-user-select: none;
+            transition: filter 0.2s;
+            overflow: hidden; position: fixed;
+            width: 100%; height: 100%;
+        }
+        
+        .menu-overlay {
+            display: flex;
+            flex-direction: column; justify-content: center; align-items: center;
+            height: 100%; width: 100%; gap: 15px; position: fixed; z-index: 100;
+            top: 0; left: 0;
+            overflow-y: auto; box-sizing: border-box; padding: 20px 0;
+            overscroll-behavior: contain;
+        }
+        
+        #startMenu { background: url('/static/backgrounds/start.png') center/cover no-repeat, #141414;
+            justify-content: flex-end; padding-bottom: 15vh; }
+        #mainMenu { background: url('/static/backgrounds/menu.png') center/cover no-repeat, #141414; }
+        #onlineMenu { background: url('/static/backgrounds/playonline.png') center/cover no-repeat, #141414; }
+        #mapMenu { background: url('/static/backgrounds/maps.png') center/cover no-repeat, #141414; }
+        #teamMenu { background: url('/static/backgrounds/team.png') center/cover no-repeat, #141414; }
+        #difficultyMenu { background: url('/static/backgrounds/difficulty.png') center/cover no-repeat, #141414; }
+        #settingsMenu { background: url('/static/backgrounds/settings.png') center/cover no-repeat, #141414; justify-content: center; overflow: hidden;
+            padding-top: 0; }
+        #exitMenu { background: url('/static/backgrounds/exit.png') center/cover no-repeat, #141414; }
+
+        .menu-title { font-size: 40px; color: #ff3385;
+            text-shadow: 0 0 10px #000, 0 0 20px #ff3385; margin-bottom: 20px; }
+        
+        .menu-btn {
+            width: 80%;
+            max-width: 400px; padding: 15px; font-size: 20px;
+            background: linear-gradient(to bottom, #3b3b3b, #2b2b2b); color: white; border: 2px solid #444;
+            font-weight: bold;
+            border-radius: 12px; cursor: pointer; transition: all 0.2s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+        }
+        .menu-btn:active, .menu-btn:hover { background: #ff3385; border-color: #fff; transform: translateY(2px); box-shadow: none;}
+        .menu-input {
+            padding: 15px;
+            font-size: 18px; width: 80%; max-width: 370px; border-radius: 8px; 
+            border: 1px solid #555; background: #222; color: #fff; text-align: center; margin-bottom: 10px;
+        }
+        .menu-desc { color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.8); max-width: 400px;
+            margin-bottom: 15px; font-size: 14px; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px;}
+
+        .settings-group {
+            display: flex;
+            flex-direction: column; width: 80%; max-width: 350px; gap: 4px; margin-bottom: 8px;
+            background: rgba(0,0,0,0.7); padding: 10px 15px; border-radius: 8px; border: 1px solid #555;
+        }
+        .settings-group label { font-size: 14px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; width: 100%;}
+        .settings-group input[type="range"] { width: 100%; margin-top: 2px; }
+        .settings-group input[type="checkbox"] { width: 18px; height: 18px; accent-color: #ff3385; }
+
+        .header { 
+            padding: 6px 8px;
+            display: flex; justify-content: space-between; 
+            background: #222; font-weight: bold; align-items: center; gap: 5px;
+        }
+        
+        .top-panel-item {
+            height: 36px;
+            box-sizing: border-box; display: flex; align-items: center; justify-content: center;
+            border: 2px solid #555; border-radius: 6px; background: linear-gradient(to bottom, #3b3b3b, #2b2b2b);
+            color: #fff; font-size: 16px; padding: 0 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            white-space: nowrap;
+        }
+
+        .timer { color: #ffcc00; font-weight: bold; }
+        .timer.urgent { color: #ff3333; text-shadow: 0 0 8px #ff0000; }
+        
+        .wind-box { gap: 6px; max-width: 55px; padding: 0 4px; }
+        .wind-label { font-size: 14px; line-height: 1; }
+        .wind-bar-bg { width: 30px; height: 8px; background: #111; position: relative; border-radius: 4px; box-shadow: inset 0 0 5px rgba(0,0,0,0.8); }
+        .wind-bar-center { position: absolute; left: 50%;
+            top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,0.5); z-index: 2; transform: translateX(-50%);
+        }
+        .wind-fill { position: absolute; height: 100%; top: 0; transition: all 0.3s ease; border-radius: 4px;}
+
+        .header-btn { cursor: pointer; touch-action: manipulation; transition: all 0.1s; }
+        .header-btn:active { transform: translateY(1px); box-shadow: none; }
+        .header-btn-pause { border-color: #e67e22; }
+        .header-btn-pause:active { background: #e67e22; }
+        .header-btn-skip { border-color: #27ae60; }
+        .header-btn-skip:active { background: #27ae60; }
+        .header-btn-settings { border-color: #8e44ad; }
+        .header-btn-settings:active { background: #8e44ad; }
+        .header-btn-disabled { opacity: 0.4; pointer-events: none; filter: grayscale(1); }
+        .header-btn-music { border-color: #3498db; }
+        .header-btn-music:active { background: #3498db; }
+        #btnExit { border-color: #900; background: linear-gradient(to bottom, #e74c3c, #c0392b); cursor: pointer; transition: 0.2s; }
+        #btnExit:active { transform: translateY(2px); box-shadow: none; }
+
+        canvas { background: #1a1c2e; display: block; margin: 0 auto; max-width: 100%; height: auto; border-bottom: 4px solid #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        
+        #teamHealthBars {
+            display: flex; justify-content: space-between; gap: 15px; padding: 8px 12px 0 12px;
+            max-width: 800px; margin: 0 auto; box-sizing: border-box;
+        }
+        .team-hb-wrapper {
+            display: flex; align-items: center; gap: 8px; flex: 1 1 50%; transition: all 0.3s ease;
+        }
+        .team-hb-name {
+            font-weight: bold; font-size: 14px; text-shadow: 0 1px 3px #000; white-space: nowrap; width: 85px; transition: all 0.3s ease;
+        }
+        .team-hb-wrapper:nth-child(1) .team-hb-name { text-align: right; }
+        .team-hb-wrapper:nth-child(2) .team-hb-name { text-align: left; }
+        .hb-bg {
+            flex: 1; background: #222; height: 14px; border-radius: 7px;
+            border: 2px solid #444; overflow: hidden; box-shadow: inset 0 0 5px rgba(0,0,0,0.8); transition: all 0.3s ease;
+        }
+        .hb-fill { height: 100%; width: 100%; transition: width 0.4s ease, filter 0.3s ease; }
+        #hbTeam2 { float: right; }
+
+        .active-team-bar .team-hb-name {
+            text-shadow: 0 0 10px currentColor, 0 0 20px currentColor !important; transform: scale(1.1);
+        }
+        .active-team-bar .hb-bg {
+            box-shadow: 0 0 10px currentColor, inset 0 0 5px rgba(0,0,0,0.8); border-color: #fff;
+        }
+        .inactive-team-bar { opacity: 0.4; filter: grayscale(0.8); }
+
+        .controls { display: flex; flex-direction: column; gap: 6px; padding: 8px 12px; max-width: 800px; margin: 0 auto; }
+        .row { display: flex; justify-content: space-between; width: 100%; gap: 10px; flex-wrap: wrap; }
+        .btn-group { display: flex; gap: 10px; width: 48%; }
+        
+        .btn {
+            flex: 1; background: linear-gradient(to bottom, #3b3b3b, #2b2b2b); color: white; border: 2px solid #444; padding: 14px 0;
+            font-size: 16px; font-weight: bold; border-radius: 12px; touch-action: manipulation; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: all 0.1s;
+        }
+        .btn:active { background: #ff3385; border-color: #fff; transform: translateY(2px); box-shadow: none; }
+        
+        .weapon-btn { background: linear-gradient(to bottom, #4a627a, #34495e); border-color: #2c3e50; font-size: 13px; padding: 10px 0; min-width: 12%; transition: all 0.2s;}
+        .weapon-selected { background: linear-gradient(to bottom, #2ecc71, #27ae60) !important; border-color: #fff !important; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .badge { background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 5px; font-size: 11px; margin-left: 3px; border: 1px solid #555;}
+
+        .flash-red {
+            background: linear-gradient(to bottom, #e74c3c, #c0392b) !important; border-color: #ffcccc !important;
+            box-shadow: 0 0 15px rgba(231, 76, 60, 0.8) !important; transform: scale(1.05) !important; z-index: 5;
+        }
+        
+        .btn-shoot { background: linear-gradient(to bottom, #9b59b6, #8e44ad); border-color: #6c3483; width: 100%; }
+        .btn-jump { background: linear-gradient(to bottom, #d9534f, #c9302c); border-color: #ac2925; width: 100%; padding: 12px 0; font-size: 18px;}
+        .btn-switch { background: linear-gradient(to bottom, #3498db, #2980b9); border-color: #1f618d; width: 100%; padding: 12px 0; font-size: 14px;}
+        
+        .btn-switch-locked { 
+            background: linear-gradient(to bottom, #1f4263, #11273d) !important; border-color: #0a1826 !important; color: #aab7c4 !important;
+        }
+        
+        #pContainer { width: 100%; background: #222; height: 18px; border-radius: 9px; overflow: hidden; display: none; margin-bottom: 5px; border: 2px solid #555;}
+        #pBar { width: 0%; height: 100%; background: linear-gradient(to right, #2ecc71, #f1c40f, #e74c3c); box-shadow: 0 0 10px rgba(231, 76, 60, 0.8);}
+        
+        #gameOverScreen { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.85); z-index:10; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(5px);}
+        #gameOverScreen h2 { font-size: 45px; color: #ff3385; margin-bottom: 10px; text-shadow: 0 5px 15px rgba(255, 51, 133, 0.6); }
+        #gameOverBtns { display: flex; gap: 12px; margin-top: 10px; }
+        .btn-gameover { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 80px; height: 80px; background: linear-gradient(to bottom, #333, #222); border: 2px solid #555; border-radius: 10px; color: #fff; font-size: 11px; cursor: pointer; text-align: center; padding: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: background 0.15s, transform 0.1s; }
+        .btn-gameover:hover { background: linear-gradient(to bottom, #444, #333); border-color: #aaa; transform: translateY(-2px); }
+        .btn-gameover:active { background: #ff3385; border-color: #fff; transform: translateY(1px); box-shadow: none; }
+        .btn-gameover span.icon { font-size: 22px; }
+        
+        #pauseOverlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.75); z-index: 20; flex-direction: column;
+            justify-content: center; align-items: center; backdrop-filter: blur(4px);
+        }
+        #pauseOverlay h2 { font-size: 48px; color: #e67e22; text-shadow: 0 0 20px #e67e22; margin-bottom: 30px; }
+    </style>
+</head>
+<body>
+
+    <div id="startMenu" class="menu-overlay">
+        <button class="menu-btn" onclick="startMenuMusic(); showMenu('mainMenu')">Start</button>
+    </div>
+
+    <div id="mainMenu" class="menu-overlay" style="display: none;">
+        <button class="menu-btn" onclick="selectMode('vs_pc')">1. Hrát proti počítači</button>
+        <button class="menu-btn" onclick="selectMode('vs_friend')">2. Hrát proti kamarádovi</button>
+        <button class="menu-btn" onclick="selectMode('online')">3. Hrát online</button>
+        <button class="menu-btn" onclick="openSettings('mainMenu')">4. Nastavení</button>
+        <button class="menu-btn" onclick="showMenu('exitMenu')">5. Konec</button>
+    </div>
+
+    <div id="settingsMenu" class="menu-overlay" style="display: none;">
+        <div class="settings-group">
+            <label>Hlasitost efektů: <span id="sfxVal">100%</span></label>
+            <input type="range" id="sfxSlider" min="0" max="100" value="100">
+        </div>
+        <div class="settings-group">
+            <label>Hlasitost hudby: <span id="musicVal">45%</span></label>
+            <input type="range" id="musicSlider" min="0" max="100" value="45">
+        </div>
+        <div class="settings-group">
+            <label>Jas obrazovky: <span id="brightVal">100%</span></label>
+            <input type="range" id="brightSlider" min="20" max="150" value="100">
+        </div>
+        <div class="settings-group" style="flex-direction:row;">
+            <label>Otočit míření:</label>
+            <input type="checkbox" id="invertAimToggle">
+        </div>
+        <div class="settings-group" style="flex-direction:row;">
+            <label>Vibrace:</label>
+            <input type="checkbox" id="vibrationToggle" checked>
+        </div>
+        <button class="menu-btn" style="background: #555; border-color: #333; margin-top: 5px;" onclick="closeSettings()">Zpět</button>
+    </div>
+
+    <div id="exitMenu" class="menu-overlay" style="display: none;">
+        <p class="menu-desc" style="font-size: 18px; line-height: 1.5;">
+            Tahle hra běží v prohlížeči.<br>
+            Nelze ji vypnout tlačítkem :)<br><br>
+            <strong>Jak odejít:</strong><br>
+            Prohlížeč: zavři okno s hrou<br>
+            Termux: Ctrl+C
+        </p>
+        <button class="menu-btn" style="background: #555; border-color: #333; margin-top: 20px;" onclick="showMenu('mainMenu')">Zpět do menu</button>
+    </div>
+
+    <div id="onlineMenu" class="menu-overlay" style="display: none;">
+        <p class="menu-desc">Pokud se připojuješ k někomu, zadej jeho IP adresu a port (např. 192.168.1.10:5000).<br><br>Pokud zakládáš hru ty, nech pole prázdné.</p>
+        <input type="text" id="ipInput" placeholder="Zadej IP a PORT" class="menu-input">
+        <button class="menu-btn" onclick="submitOnline()">Pokračovat k výběru mapy</button>
+        <button class="menu-btn" style="background: #555; border-color: #333;" onclick="showMenu('mainMenu')">Zpět</button>
+    </div>
+
+    <div id="mapMenu" class="menu-overlay" style="display: none;">
+        <button class="menu-btn" onclick="selectMap('map1')">Rezavý víčko</button>
+        <button class="menu-btn" onclick="selectMap('map2')">Okurkovej most</button>
+        <button class="menu-btn" onclick="selectMap('map3')">Zelnej příkop</button>
+        <button class="menu-btn" onclick="selectMap('map4')">Řepný útesy</button>
+        <button class="menu-btn" onclick="selectMap('map5')">Arizonskej salát</button>
+        <button class="menu-btn" style="background: #555; border-color: #333;" onclick="goBackFromMap()">Zpět</button>
+    </div>
+    
+    <div id="teamMenu" class="menu-overlay" style="display: none;">
+        <button class="menu-btn" onclick="selectTeam('team1')">Hrát za Salátovky</button>
+        <button class="menu-btn" onclick="selectTeam('team2')">Hrát za Nakladačky</button>
+        <button class="menu-btn" style="background: #555; border-color: #333;" onclick="showMenu('mapMenu')">Zpět</button>
+    </div>
+
+    <div id="difficultyMenu" class="menu-overlay" style="display: none;">
+        <button class="menu-btn" onclick="startVsPcGame('Lehká')">Lehká</button>
+        <button class="menu-btn" onclick="startVsPcGame('Střední')">Střední</button>
+        <button class="menu-btn" onclick="startVsPcGame('Těžká')">Těžká</button>
+        <button class="menu-btn" style="background: #555; border-color: #333;" onclick="showMenu('teamMenu')">Zpět</button>
+    </div>
+
+    <div id="exitDialogOverlay" class="menu-overlay" style="display: none; z-index: 200; background: rgba(0,0,0,0.85);">
+        <h2 style="color: #fff; font-size: 30px; margin-bottom: 20px;">Opravdu chceš ukončit hru?</h2>
+        <button class="menu-btn" id="btnConfirmExit" style="background: linear-gradient(to bottom, #e74c3c, #c0392b);">Návrat do menu</button>
+        <button class="menu-btn" id="btnConfirmRestart" style="background: linear-gradient(to bottom, #f39c12, #d35400);">Restartovat</button>
+        <button class="menu-btn" style="background: #555; border-color: #333;" onclick="closeExitDialog()">Storno</button>
+    </div>
+
+    <div id="gameUI" style="display: none;">
+        <div id="gameOverScreen">
+            <h2 id="winnerTitle">Vítězí Tým 1!</h2>
+            <p>Hra skončila</p>
+            <div id="gameOverBtns">
+                <button class="btn-gameover" id="btnRestart">
+                    <span class="icon">🔄</span>
+                    <span>Hrát znovu</span>
+                </button>
+                <button class="btn-gameover" id="btnBackToMenu">
+                    <span class="icon">🏠</span>
+                    <span>Návrat do menu</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="pauseOverlay">
+            <h2>⏸ PAUZA</h2>
+            <button class="menu-btn" onclick="resumeGame()">▶ Pokračovat</button>
+        </div>
+
+        <div class="header">
+            <button id="btnPause" class="top-panel-item header-btn header-btn-pause" title="Pauza">⏸</button>
+            
+            <div class="top-panel-item timer" id="turnTimer">30s</div>
+            
+            <div class="top-panel-item wind-box" id="windBox">
+                <span class="wind-label">🌬️</span>
+                <div class="wind-bar-bg">
+                    <div class="wind-bar-center"></div>
+                    <div id="windFill" class="wind-fill"></div>
+                </div>
+            </div>
+
+            <button id="btnSkipTurn" class="top-panel-item header-btn header-btn-skip" title="Přeskočit tah">⏭</button>
+            <button id="btnSettings" class="top-panel-item header-btn header-btn-settings" title="Nastavení" onclick="openSettings('gameUI')">⚙️</button>
+            <button id="btnMusicToggle" class="top-panel-item header-btn header-btn-music" title="Ztlumit/zapnout hudbu">🔊</button>
+            <button id="btnExit" class="top-panel-item" title="Ukončit hru">🔌</button>
+        </div>
+    
+        <canvas id="gameCanvas" width="800" height="500"></canvas>
+
+        <div id="teamHealthBars">
+            <div class="team-hb-wrapper" id="wrapperTeam1">
+                <span class="team-hb-name" style="color: #90ee90;">Salátovky</span>
+                <div class="hb-bg"><div class="hb-fill" id="hbTeam1" style="background: linear-gradient(to right, #32cd32, #27ae60);"></div></div>
+            </div>
+            <div class="team-hb-wrapper" id="wrapperTeam2">
+                <div class="hb-bg"><div class="hb-fill" id="hbTeam2" style="background: linear-gradient(to left, #145a32, #90ee90);"></div></div>
+                <span class="team-hb-name" style="color: #27ae60;">Nakladačky</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="row" style="justify-content: flex-start; gap: 6px;">
+                <button class="btn weapon-btn weapon-selected" id="wpnBazooka">Bazuka <span class="badge">∞</span></button>
+                <button class="btn weapon-btn" id="wpnGrenade">Granát <span class="badge">∞</span></button>
+                <button class="btn weapon-btn" id="wpnFrag">Frag <span class="badge">10</span></button>
+                <button class="btn weapon-btn" id="wpnM79">M79 <span class="badge">10</span></button>
+                <button class="btn weapon-btn" id="wpnUzi">Uzi <span class="badge">10</span></button>
+                <button class="btn weapon-btn" id="wpnShotgun">S686 <span class="badge">20</span></button>
+                <button class="btn weapon-btn" id="wpnLupara">Lupara <span class="badge">20</span></button>
+                <button class="btn weapon-btn" id="wpnPlasma">Plazma <span class="badge">10</span></button>
+                <button class="btn weapon-btn" id="wpnMolotov">Molotov <span class="badge">10</span></button>
+                <button class="btn weapon-btn" id="wpnRailgun">Railgun <span class="badge">10</span></button>
+            </div>
+
+            <div class="row">
+                <button class="btn btn-switch" id="btnSwitchWorm">Přepnout okurku</button>
+            </div>
+
+            <div class="row">
+                <div class="btn-group">
+                    <button class="btn" id="btnLeft">◀ Chůze</button>
+                    <button class="btn" id="btnRight">Chůze ▶</button>
+                </div>
+                <div class="btn-group">
+                    <button class="btn" id="btnUp">Mířit ▴</button>
+                    <button class="btn" id="btnDown">Mířit ▾</button>
+                </div>
+            </div>
+            
+            <div id="pContainer"><div id="pBar"></div></div>
+            <div class="row">
+                <button class="btn btn-shoot" id="btnShoot">PAL!</button>
+            </div>
+            <div class="row">
+                <button class="btn btn-jump" id="btnJump">Skočit</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let userSettings = {
+            sfxVolume: 100, musicVolume: 45, brightness: 100, invertAim: false, vibration: true
+        };
+        let settingsReturnTo = 'mainMenu';
+        let localTeam = 'both';
+        let chosenPcTeam = 'team1';
+        
+        function openSettings(from) {
+            settingsReturnTo = from;
+            if (from === 'gameUI') {
+                document.getElementById('gameUI').style.display = 'none';
+                if (!isPaused && !game.game_over) { isPaused = true; clearInterval(timerInterval); }
+            } else {
+                document.getElementById(from).style.display = 'none';
+            }
+            document.getElementById('settingsMenu').style.display = 'flex';
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsMenu').style.display = 'none';
+            if (settingsReturnTo === 'gameUI') {
+                document.getElementById('gameUI').style.display = 'block';
+                document.getElementById('pauseOverlay').style.display = 'flex';
+            } else { showMenu(settingsReturnTo); }
+        }
+
+        document.getElementById('sfxSlider').addEventListener('input', (e) => {
+            userSettings.sfxVolume = e.target.value;
+            document.getElementById('sfxVal').innerText = e.target.value + '%';
+        });
+        document.getElementById('musicSlider').addEventListener('input', (e) => {
+            userSettings.musicVolume = e.target.value;
+            document.getElementById('musicVal').innerText = e.target.value + '%';
+            if (bgMusic && !musicMuted) bgMusic.volume = userSettings.musicVolume / 100;
+            if (menuMusic && !musicMuted) menuMusic.volume = userSettings.musicVolume / 100;
+        });
+        document.getElementById('brightSlider').addEventListener('input', (e) => {
+            userSettings.brightness = e.target.value;
+            document.getElementById('brightVal').innerText = e.target.value + '%';
+            document.body.style.filter = `brightness(${userSettings.brightness}%)`;
+        });
+        document.getElementById('invertAimToggle').addEventListener('change', (e) => {
+            userSettings.invertAim = e.target.checked;
+            if (userSettings.invertAim) {
+                document.getElementById('btnUp').innerText = 'Mířit ▾'; document.getElementById('btnDown').innerText = 'Mířit ▴';
+            } else {
+                document.getElementById('btnUp').innerText = 'Mířit ▴'; document.getElementById('btnDown').innerText = 'Mířit ▾';
+            }
+        });
+        document.getElementById('vibrationToggle').addEventListener('change', (e) => { userSettings.vibration = e.target.checked; });
+        function triggerVibrate(duration) { if (userSettings.vibration && navigator.vibrate) { navigator.vibrate(duration); } }
+
+        let selectedMode = '';
+        let targetSocketUrl = ''; let socket = null; let gameLoopRunning = false;
+        
+        let aiDifficulty = 'Střední';
+        let selectedMapName = 'map1';
+        let teamWeapons = { team1: 'bazooka', team2: 'bazooka' };
+
+        function showMenu(menuId) {
+            document.querySelectorAll('.menu-overlay').forEach(el => el.style.display = 'none');
+            document.getElementById('gameUI').style.display = 'none';
+            document.getElementById(menuId).style.display = 'flex';
+        }
+
+        function selectMode(mode) {
+            selectedMode = mode;
+            if (mode === 'online') { showMenu('onlineMenu'); } else { showMenu('mapMenu'); }
+        }
+
+        function submitOnline() {
+            targetSocketUrl = document.getElementById('ipInput').value.trim();
+            showMenu('mapMenu');
+        }
+
+        function goBackFromMap() {
+            if (selectedMode === 'online') { showMenu('onlineMenu');
+            } else { showMenu('mainMenu'); }
+        }
+
+        function selectMap(mapName) {
+            selectedMapName = mapName;
+            if (selectedMode === 'vs_pc') {
+                showMenu('teamMenu');
+            } else {
+                startGame(selectedMapName);
+            }
+        }
+        
+        function selectTeam(team) {
+            chosenPcTeam = team;
+            showMenu('difficultyMenu');
+        }
+
+        function startVsPcGame(diff) {
+            aiDifficulty = diff;
+            startGame(selectedMapName);
+        }
+
+        function connectSocketAndStart(mapName) {
+            if (socket) { socket.disconnect(); }
+            let connectUrl = undefined;
+            if (selectedMode === 'online' && targetSocketUrl !== '') { connectUrl = targetSocketUrl.startsWith('http') ? targetSocketUrl : 'http://' + targetSocketUrl; }
+            socket = io(connectUrl); bindSocketEvents();
+            socket.emit('start_new_game', { mode: selectedMode, map_name: mapName });
+        }
+
+        function startGame(mapName) {
+            document.querySelectorAll('.menu-overlay').forEach(el => el.style.display = 'none');
+            document.getElementById('gameUI').style.display = 'block'; stopMenuMusic();
+            const btnPause = document.getElementById('btnPause');
+            
+            if (selectedMode === 'vs_pc') {
+                localTeam = chosenPcTeam;
+            } else if (selectedMode === 'online') {
+                localTeam = targetSocketUrl === '' ? 'team1' : 'team2';
+            } else {
+                localTeam = 'both';
+            }
+            
+            if (selectedMode === 'online') {
+                btnPause.classList.add('header-btn-disabled');
+                btnPause.title = 'Pauza není dostupná v online hře';
+            } else {
+                btnPause.classList.remove('header-btn-disabled');
+                btnPause.title = 'Pauza';
+            }
+            connectSocketAndStart(mapName);
+            if (!gameLoopRunning) { gameLoopRunning = true; requestAnimationFrame(clientUpdate); }
+        }
+
+        function openExitDialog() {
+            if (selectedMode === 'online' || game.game_over) {
+                document.getElementById('btnConfirmRestart').style.display = 'none';
+            } else {
+                document.getElementById('btnConfirmRestart').style.display = 'block';
+            }
+            document.getElementById('exitDialogOverlay').style.display = 'flex';
+            isPaused = true; 
+            clearInterval(timerInterval);
+        }
+
+        function closeExitDialog() {
+            document.getElementById('exitDialogOverlay').style.display = 'none';
+            isPaused = false;
+            resumeTimer();
+        }
+
+        document.getElementById('btnExit').addEventListener('click', openExitDialog);
+        document.getElementById('btnConfirmExit').addEventListener('click', () => {
+            game.game_over = true; gameLoopRunning = false; isPaused = false;
+            document.getElementById('exitDialogOverlay').style.display = 'none';
+            document.getElementById('pauseOverlay').style.display = 'none';
+            if (socket) socket.disconnect(); stopMusic();
+            document.getElementById('gameUI').style.display = 'none'; showMenu('mainMenu'); startMenuMusic();
+        });
+        document.getElementById('btnConfirmRestart').addEventListener('click', () => {
+            document.getElementById('exitDialogOverlay').style.display = 'none';
+            isPaused = false;
+            socket.emit('restart_game');
+        });
+        document.getElementById('btnMusicToggle').addEventListener('click', () => {
+            musicMuted = !musicMuted; const btn = document.getElementById('btnMusicToggle');
+            if (musicMuted) {
+                if (bgMusic) bgMusic.volume = 0; if (menuMusic) menuMusic.volume = 0;
+                btn.classList.add('muted'); btn.textContent = '🔇';
+            } else {
+                 if (bgMusic) bgMusic.volume = userSettings.musicVolume / 100; if (menuMusic) menuMusic.volume = userSettings.musicVolume / 100;
+                btn.classList.remove('muted'); btn.textContent = '🔊';
+            }
+        });
+        function emitNextTurn() { if (!turnEnded) { turnEnded = true; socket.emit('next_turn'); } }
+        let isPaused = false;
+        document.getElementById('btnPause').addEventListener('click', () => {
+            if (selectedMode === 'online' || game.game_over) return;
+            isPaused = true; clearInterval(timerInterval); document.getElementById('pauseOverlay').style.display = 'flex';
+        });
+        function resumeGame() { isPaused = false; document.getElementById('pauseOverlay').style.display = 'none'; resumeTimer(); }
+
+        function updateSkipButtonState() {
+            const btn = document.getElementById('btnSkipTurn');
+            let isMyTurn = (localTeam === 'both' || localTeam === game.active_team);
+            if (turnHasAttacked || !isMyTurn) { 
+                btn.classList.add('header-btn-disabled');
+            } else { 
+                btn.classList.remove('header-btn-disabled');
+            }
+        }
+
+        document.getElementById('btnSkipTurn').addEventListener('click', () => {
+            let isMyTurn = (localTeam === 'both' || localTeam === game.active_team);
+            if (game.game_over || isPaused || turnHasAttacked || turnEnded || !isMyTurn) return;
+            clearInterval(timerInterval); emitNextTurn();
+        });
+        const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
+        const terrainCanvas = document.createElement('canvas'); terrainCanvas.width = 800; terrainCanvas.height = 500;
+        const tCtx = terrainCanvas.getContext('2d', { willReadFrequently: true });
+        const WIDTH = 800; const HEIGHT = 500;
+        let game = { worms: {}, rocks: [], clouds: [], crates: [], mines: [], graves: [], active_team: "team1", active_worm_id: null, game_over: false, wind: 0 };
+        let localBullet = null; let activeUziBullets = []; let activePlasmaBullets = []; let activeShrapnels = []; let activeLuparaPellets = [];
+        let railgunBeams = []; let activeFires = []; let sinkingObjects = []; let selectedWeapon = "bazooka"; let currentPower = 0;
+        let powerInterval = null; let isAutofiring = false; let autofireInterval = null; let shotgunShotsLeft = 2; let luparaShotsLeft = 2;
+        let lockWeapons = false;
+        let turnWormLocked = false; let turnHasAttacked = false; let turnEnded = false; let localPendingBullets = 0;
+        let particles = [];
+        let smokeTrails = []; let muzzleFlash = null; let walkAnimTime = 0; let lastStepSoundTime = 0;
+        let wormPhysics = {};
+        
+        let isAITurn = false;
+        let aiState = 'IDLE'; 
+        let aiTargetAngle = 0;
+        let aiTargetPower = 0;
+        let aiActionTimer = 0;
+
+        let keysPressed = { left: false, right: false, up: false, down: false };
+        let aiKeysPressed = { left: false, right: false };
+        let timeLeft = 30;
+
+        let cloudSprite = null; let cloudSpriteLoaded = false;
+        (function loadCloudSprite() {
+            let img = new Image(); img.onload = () => { cloudSprite = img; cloudSpriteLoaded = true; }; img.onerror = () => { cloudSprite = null; cloudSpriteLoaded = false; }; img.src = '/static/sprites/cloud.png';
+        })();
+        let fishes = [];
+        for(let i=0; i<6; i++) {
+            fishes.push({ x: Math.random() * WIDTH, yOffset: 20 + Math.random() * 80, speed: 0.5 + Math.random() * 1.5, dir: Math.random() > 0.5 ? 1 : -1, size: 0.8 + Math.random() * 0.6 });
+        }
+        let fishSprite = null; let fishSpriteLoaded = false;
+        (function loadFishSprite() {
+            let img = new Image(); img.onload = () => { fishSprite = img; fishSpriteLoaded = true; }; img.onerror = () => { fishSprite = null; fishSpriteLoaded = false; }; img.src = '/static/sprites/fish.png';
+        })();
+        
+        let timerInterval = null; let molotovInFlight = false;
+
+        let bgMusic = null; let musicMuted = false; let bgImage = null;
+        let bgImageLoaded = false;
+        function loadLevelAssets(mapName) {
+            bgImageLoaded = false;
+            bgImage = new Image(); bgImage.onload  = () => { bgImageLoaded = true; };
+            bgImage.onerror = () => { bgImage = null; }; bgImage.src = `/static/backgrounds/${mapName}.png`;
+            if (bgMusic) { bgMusic.pause(); bgMusic.src = '';
+            bgMusic = null; }
+            let newMusic = new Audio(`/static/music/${mapName}.mp3`);
+            newMusic.loop   = true; newMusic.volume = musicMuted ? 0 : (userSettings.musicVolume / 100); newMusic.preload = 'auto';
+            let playPromise = newMusic.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(() => {
+                    const resumeMusic = () => { newMusic.play().catch(() => {}); document.removeEventListener('touchstart', resumeMusic); document.removeEventListener('click', resumeMusic); };
+                    document.addEventListener('touchstart', resumeMusic, { once: true }); document.addEventListener('click', resumeMusic, { once: true });
+                });
+            }
+            bgMusic = newMusic;
+        }
+
+        function stopMusic() { if (bgMusic) { bgMusic.pause(); bgMusic.src = ''; bgMusic = null; } }
+        let menuMusic = null;
+        function startMenuMusic() {
+            if (menuMusic) return;
+            menuMusic = new Audio('/static/music/menu.mp3'); menuMusic.loop = true; menuMusic.volume = musicMuted ? 0 : (userSettings.musicVolume / 100); menuMusic.play().catch(() => {});
+        }
+        function stopMenuMusic() { if (menuMusic) { menuMusic.pause(); menuMusic.src = ''; menuMusic = null; } }
+
+        let audioCtx = null; let chargeOsc = null;
+        let chargeGain = null;
+        const soundCache = {};
+        const soundList = [
+            'step', 'jump', 'bounce', 'splash',
+            'shoot_bazooka', 'shoot_grenade', 'shoot_uzi', 'shoot_shotgun', 'shoot_molotov', 'shoot_plasma', 'shoot_m79', 'shoot_lupara', 'shoot_railgun', 'shoot_frag',
+            'explosion_bazooka', 'explosion_grenade', 'explosion_uzi', 'explosion_shotgun', 'explosion_frag', 'explosion_molotov', 'explosion_shrapnel', 'explosion_plasma', 'explosion_m79', 'explosion_lupara', 'explosion_railgun', 'explosion_grave', 'explosion_crate', 'explosion_debris', 'explosion_mine',
+            'crate_pickup', 'click', 'win_fanfare', 'molotov_fire', 'beep', 'fall', 'hit', 'airdrop', 'airdrop_land', 'mine_countdown'
+        ];
+        soundList.forEach(soundName => {
+            const audio = new Audio(`/static/sounds/${soundName}.mp3`); audio.preload = 'auto';
+            if (soundName === 'molotov_fire') { audio.loop = true; }
+            soundCache[soundName] = audio;
+        });
+        function playSynthFallback(type, now) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            let volFactor = userSettings.sfxVolume / 100;
+            if (type === 'step') {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain(); osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'triangle'; osc.frequency.setValueAtTime(230, now); gain.gain.setValueAtTime(0.06 * volFactor, now); osc.start(now); osc.stop(now + 0.05);
+            } else if (type === 'jump') {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain(); osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'triangle'; osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(360, now + 0.12); gain.gain.setValueAtTime(0.15 * volFactor, now); osc.start(now);
+                osc.stop(now + 0.12);
+            } else if (type === 'crate_pickup') {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain(); osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'sine'; osc.frequency.setValueAtTime(400, now); osc.frequency.linearRampToValueAtTime(800, now + 0.2); gain.gain.setValueAtTime(0.2 * volFactor, now); osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (type === 'click') {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain(); osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'square'; osc.frequency.setValueAtTime(600, now); gain.gain.setValueAtTime(0.05 * volFactor, now); osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'beep' || type === 'mine_countdown') {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain(); osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'sine'; osc.frequency.setValueAtTime(880, now); gain.gain.setValueAtTime(0.25 * volFactor, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18); osc.start(now);
+                osc.stop(now + 0.18);
+            } else if (type === 'splash') {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain(); osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'sine'; osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(50, now + 0.3); gain.gain.setValueAtTime(0.3 * volFactor, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3); osc.start(now); osc.stop(now + 0.3);
+            }
+        }
+
+        function playSound(type) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            let now = audioCtx.currentTime; let volFactor = userSettings.sfxVolume / 100;
+            try {
+                if (soundCache[type]) {
+                    let clonedAudio = soundCache[type].cloneNode();
+                    let baseVol = type.startsWith('shoot_') ? 0.42 : 0.38;
+                    if (type === 'molotov_fire') baseVol = 0.5; clonedAudio.volume = baseVol * volFactor;
+                    let playPromise = clonedAudio.play();
+                    if (playPromise !== undefined) { playPromise.catch(() => { playSynthFallback(type, now); }); }
+                } else { playSynthFallback(type, now); }
+            } catch(e) { playSynthFallback(type, now); }
+        }
+
+        function startChargeSound() {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                chargeOsc = audioCtx.createOscillator(); chargeGain = audioCtx.createGain();
+                chargeOsc.type = 'sine'; chargeOsc.frequency.setValueAtTime(260, audioCtx.currentTime); 
+                chargeGain.gain.setValueAtTime(0.15 * (userSettings.sfxVolume / 100), audioCtx.currentTime);
+                chargeOsc.connect(chargeGain); chargeGain.connect(audioCtx.destination); chargeOsc.start();
+            } catch(e){}
+        }
+        function updateChargeSound(powerPercent) { if (chargeOsc && audioCtx) chargeOsc.frequency.setValueAtTime(260 + (powerPercent / 100) * 490, audioCtx.currentTime); }
+        function stopChargeSound() { if (chargeOsc) { try { chargeOsc.stop(); chargeOsc.disconnect(); } catch(e){} chargeOsc = null; } }
+
+        function updateWindDisplay() {
+            let wind = game.wind || 0; let fill = document.getElementById('windFill'); let percentage = Math.min(Math.abs(wind) * 50, 50);
+            if (wind < 0) { fill.style.width = percentage + '%'; fill.style.left = (50 - percentage) + '%'; fill.style.right = 'auto'; fill.style.background = '#e74c3c'; } 
+            else { fill.style.width = percentage + '%'; fill.style.left = '50%'; fill.style.right = 'auto'; fill.style.background = '#3498db'; }
+        }
+
+        function getWaterY(x) {
+            let wind = game.wind || 0; let time = Date.now() / 1000; let base = HEIGHT - 120;
+            let amplitude = 4 + Math.abs(wind) * 12; let phase = time * (1.5 + wind * 3);
+            let wave = Math.sin(x * 0.015 + phase) * amplitude + Math.sin(x * 0.03 - phase * 0.5) * (amplitude * 0.4);
+            return base + wave;
+        }
+
+        function getBackWaterY(x) {
+            let wind = game.wind || 0; let time = Date.now() / 1000; let base = HEIGHT - 128;
+            let amplitude = 3 + Math.abs(wind) * 8; let phase = time * (1.2 + wind * 2.5);
+            let wave = Math.sin(x * 0.018 + phase) * amplitude;
+            return base + wave;
+        }
+
+        function createSplash(x, y) {
+            playSound('splash');
+            for(let i=0; i<15; i++) {
+                let angle = Math.PI + (Math.random() * Math.PI);
+                let speed = Math.random() * 4 + 1;
+                particles.push({ type: 'water', x: x, y: y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, gravity: 0.15, radius: Math.random() * 3 + 1, alpha: 0.8, fadeSpeed: 0.02, color: 'rgba(150, 200, 255, 0.8)' });
+            }
+        }
+        
+        function flashWeaponButton(wpn) {
+            let idMap = { 'bazooka': 'wpnBazooka', 'grenade': 'wpnGrenade', 'frag': 'wpnFrag', 'm79': 'wpnM79', 'uzi': 'wpnUzi', 'shotgun': 'wpnShotgun', 'lupara': 'wpnLupara', 'plasma': 'wpnPlasma', 'molotov': 'wpnMolotov', 'railgun': 'wpnRailgun' };
+            let btn = document.getElementById(idMap[wpn]);
+            if (btn) {
+                btn.classList.add('flash-red');
+                setTimeout(() => { btn.classList.remove('flash-red'); }, 3000);
+            }
+        }
+
+        function bindSocketEvents() {
+            socket.on('init_state', (state) => { 
+                game = state; game.graves = []; localBullet = null; if(!game.mines) game.mines = [];
+                molotovInFlight = false; document.getElementById('gameOverScreen').style.display = 'none';
+                
+                teamWeapons = { team1: 'bazooka', team2: 'bazooka' };
+                selectedWeapon = "bazooka"; 
+                
+                if (autofireInterval) { clearInterval(autofireInterval); autofireInterval = null; }
+                isAutofiring = false;
+                
+                shotgunShotsLeft = 2; luparaShotsLeft = 2; lockWeapons = false; turnWormLocked = false;
+                turnHasAttacked = false; turnEnded = false; localPendingBullets = 0; updateSkipButtonState();
+                wormPhysics = {};
+                isAITurn = false; aiState = 'IDLE';
+                
+                for (let w_id in game.worms) {
+                    wormPhysics[w_id] = { vx: 0, vy: 0, isGrounded: false, isDrowning: false, hasLandedOnce: false, hasMovedThisTurnAI: false };
+                    game.worms[w_id].dead_processed = false;
+                }
+                updateWeaponButtonsUI();
+                updateWindDisplay(); particles = []; smokeTrails = []; muzzleFlash = null; activeUziBullets = []; activePlasmaBullets = [];
+                activeShrapnels = []; activeLuparaPellets = []; railgunBeams = []; activeFires = []; sinkingObjects = [];
+                initTerrain(game.map_name, game.tree_positions); loadLevelAssets(game.map_name); startTimer();
+            });
+            socket.on('state_update', (state) => {
+                let turnSwitched = (game.active_team !== state.active_team);
+                game.game_over = state.game_over; game.winner = state.winner;
+                game.active_team = state.active_team; game.active_worm_id = state.active_worm_id;
+                game.rocks = state.rocks || game.rocks;
+                if (state.wind !== undefined) game.wind = state.wind;
+                
+                if (state.team1_ammo) {
+                    if (game.team1_ammo) {
+                        for (let wpn in state.team1_ammo) {
+                             if (state.team1_ammo[wpn] > game.team1_ammo[wpn] && game.active_team === 'team1') flashWeaponButton(wpn);
+                        }
+                    }
+                    game.team1_ammo = state.team1_ammo;
+                }
+                if (state.team2_ammo) {
+                    if (game.team2_ammo) {
+                        for (let wpn in state.team2_ammo) {
+                             if (state.team2_ammo[wpn] > game.team2_ammo[wpn] && game.active_team === 'team2') flashWeaponButton(wpn);
+                        }
+                    }
+                    game.team2_ammo = state.team2_ammo;
+                }
+                
+                if (state.crates) {
+                    let newCrates = [];
+                    state.crates.forEach(sc => {
+                        let existing = game.crates.find(c => c.id === sc.id);
+                        if (existing) { sc.y = existing.y; sc.x = existing.x; sc.landed = existing.landed; }
+                        newCrates.push(sc);
+                    });
+                    game.crates = newCrates;
+                } else { game.crates = []; }
+                
+                if (state.mines) {
+                    let newMines = [];
+                    state.mines.forEach(sm => {
+                        let existing = (game.mines || []).find(m => m.id === sm.id);
+                        if (existing) { sm.y = existing.y; sm.x = existing.x; sm.triggered = existing.triggered; sm.triggerTime = existing.triggerTime; sm.beep1 = existing.beep1; sm.beep2 = existing.beep2; }
+                        newMines.push(sm);
+                    });
+                    game.mines = newMines;
+                } else { game.mines = []; }
+           
+                if (turnSwitched) {
+                    if (autofireInterval) { clearInterval(autofireInterval); autofireInterval = null; }
+                    isAutofiring = false; shotgunShotsLeft = 2;
+                    luparaShotsLeft = 2; lockWeapons = false; turnWormLocked = false; turnHasAttacked = false; turnEnded = false;
+                    localPendingBullets = 0; updateSkipButtonState(); molotovInFlight = false; 
+                    
+                    selectedWeapon = teamWeapons[state.active_team] || 'bazooka';
+                    
+                    keysPressed = { left: false, right: false, up: false, down: false };
+                    aiKeysPressed = { left: false, right: false };
+                    
+                    updateWeaponButtonsUI(); startTimer();
+                    isAITurn = false; aiState = 'IDLE';
+                    for (let w_id in wormPhysics) {
+                        if (wormPhysics[w_id]) wormPhysics[w_id].hasMovedThisTurnAI = false;
+                    }
+                } else { updateWeaponButtonsUI(); }
+
+                if (state.explosion_event) { eraseTerrainCircle(state.explosion_event.x, state.explosion_event.y, state.explosion_event.r); }
+
+                for (let w_id in state.worms) {
+                    if (!game.worms[w_id]) continue;
+                    if (state.worms[w_id].hp > game.worms[w_id].hp) { game.worms[w_id].healFlash = 40; }
+                    game.worms[w_id].hp = state.worms[w_id].hp;
+                    if (wormPhysics[w_id] && wormPhysics[w_id].isGrounded && game.worms[w_id].hp > 0) {
+                        game.worms[w_id].x = state.worms[w_id].x; game.worms[w_id].y = state.worms[w_id].y;
+                    }
+                    game.worms[w_id].angle = state.worms[w_id].angle; game.worms[w_id].facing = state.worms[w_id].facing;
+                }
+                updateUI(); updateWindDisplay();
+            });
+            
+            socket.on('spawn_airdrop', (crate) => { playSound('airdrop'); });
+            socket.on('spawn_bullet', (bulletData) => { 
+                let isShooterActive = (bulletData.shooter === game.active_worm_id);
+                if (isShooterActive) {
+                    if (localPendingBullets > 0) localPendingBullets--;
+                    lockWeapons = true; turnWormLocked = true; turnHasAttacked = true; updateSkipButtonState();
+                    if (bulletData.type === 'molotov') { molotovInFlight = true; }
+                }
+
+                if (bulletData.type === 'uzi') {
+                    if (isShooterActive) playSound('shoot_uzi');
+                    bulletData.inWater = false; activeUziBullets.push(bulletData);
+                    muzzleFlash = { x: bulletData.x, y: bulletData.y, angle: bulletData.angle, duration: 4, type: 'small', shooter: bulletData.shooter };
+                } else if (bulletData.type === 'plasma') {
+                    if (isShooterActive) playSound('shoot_plasma');
+                    bulletData.inWater = false; activePlasmaBullets.push(bulletData);
+                    muzzleFlash = { x: bulletData.x, y: bulletData.y, angle: bulletData.angle, duration: 4, type: 'small', shooter: bulletData.shooter, color: '#00e5ff' };
+                } else if (bulletData.type === 'lupara') {
+                    if (isShooterActive && activeLuparaPellets.length === 0) playSound('shoot_lupara');
+                    bulletData.inWater = false; activeLuparaPellets.push(bulletData);
+                } else if (bulletData.type === 'railgun') {
+                    if (isShooterActive) playSound('shoot_railgun');
+                    let rx = bulletData.x; let ry = bulletData.y;
+                    let dx = Math.cos(bulletData.angle) * 3; let dy = Math.sin(bulletData.angle) * 3;
+                    let hitX = rx; let hitY = ry; let waterHit = false; let splashX = rx; let splashY = ry;
+                    let actualHit = false;
+                    
+                    for (let step = 0; step < 270; step++) {
+                        rx += dx; ry += dy;
+                        let wY = getWaterY(rx);
+                        if (!waterHit && ry > wY) { waterHit = true; splashX = rx; splashY = wY; }
+                        let hitWormId = checkWormHitboxCollision(rx, ry);
+                        if (hitWormId || checkPixelCollision(rx, ry)) { hitX = rx; hitY = ry; actualHit = true; break; }
+                        if (rx < 0 || rx > WIDTH || ry < 0 || ry > HEIGHT) { hitX = rx; hitY = ry; break; }
+                    }
+                    if (waterHit) createSplash(splashX, splashY);
+                    railgunBeams.push({ x1: bulletData.x, y1: bulletData.y, x2: hitX, y2: hitY, life: 18, maxLife: 18 });
+                    if (actualHit) { executeExplosion(Math.floor(hitX), Math.floor(hitY), 25, 'railgun'); }
+                    checkTurnEndAfterSpecial();
+                } else {
+                    localBullet = bulletData;
+                    localBullet.bounces = 0; localBullet.inWater = false;
+                    if (bulletData.type === 'bazooka') {
+                        if (isShooterActive) playSound('shoot_bazooka');
+                        muzzleFlash = { x: bulletData.x, y: bulletData.y, angle: bulletData.angle, duration: 10, type: 'large', shooter: bulletData.shooter };
+                    } else if (bulletData.type === 'm79') {
+                        if (isShooterActive) playSound('shoot_m79');
+                        muzzleFlash = { x: bulletData.x, y: bulletData.y, angle: bulletData.angle, duration: 9, type: 'large', shooter: bulletData.shooter };
+                    } else if (bulletData.type === 'shotgun') {
+                        if (isShooterActive) playSound('shoot_shotgun');
+                        muzzleFlash = { x: bulletData.x, y: bulletData.y, angle: bulletData.angle, duration: 6, type: 'wide', shooter: bulletData.shooter };
+                    } else if (bulletData.type === 'molotov') {
+                        if (isShooterActive) playSound('shoot_molotov');
+                    } else if (bulletData.type === 'frag') {
+                        if (isShooterActive) playSound('shoot_frag');
+                    } else { 
+                        if (isShooterActive) playSound('shoot_grenade');
+                    }
+                }
+                updateUI();
+            });
+        }
+
+        function checkTurnEndConditions() {
+            let activeProjectiles = localBullet || activeUziBullets.length > 0 || activePlasmaBullets.length > 0 || activeShrapnels.length > 0 || activeLuparaPellets.length > 0 || railgunBeams.length > 0 || activeFires.length > 0 || isAutofiring || localPendingBullets > 0;
+            if (activeProjectiles) return false;
+            return !game.game_over;
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timeLeft = 30; updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                if (isPaused) return; 
+                let waitingForSecondShot = (selectedWeapon === 'shotgun' && shotgunShotsLeft === 1) || (selectedWeapon === 'lupara' && luparaShotsLeft === 1);
+                if (checkTurnEndConditions() || waitingForSecondShot) {
+                    let activeWorm = game.worms[game.active_worm_id];
+                    if (activeWorm && activeWorm.hp <= 0) { clearInterval(timerInterval); emitNextTurn(); return; }
+                    timeLeft--; updateTimerDisplay();
+                    if (timeLeft >= 1 && timeLeft <= 5) { playSound('beep'); }
+                    if (timeLeft <= 0) { clearInterval(timerInterval); emitNextTurn(); }
+                }
+            }, 1000);
+        }
+
+        function resumeTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (isPaused) return;
+                let waitingForSecondShot = (selectedWeapon === 'shotgun' && shotgunShotsLeft === 1) || (selectedWeapon === 'lupara' && luparaShotsLeft === 1);
+                if (checkTurnEndConditions() || waitingForSecondShot) {
+                    let activeWorm = game.worms[game.active_worm_id];
+                    if (activeWorm && activeWorm.hp <= 0) { clearInterval(timerInterval); emitNextTurn(); return; }
+                    timeLeft--; updateTimerDisplay();
+                    if (timeLeft >= 1 && timeLeft <= 5) { playSound('beep'); }
+                    if (timeLeft <= 0) { clearInterval(timerInterval); emitNextTurn(); }
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const timerEl = document.getElementById('turnTimer');
+            timerEl.innerText = timeLeft + "s";
+            if (timeLeft <= 5) { timerEl.classList.add('urgent'); } else { timerEl.classList.remove('urgent'); }
+        }
+
+        function initTerrain(mapName, treePositions) {
+            const mapImg = new Image();
+            mapImg.src = `/static/maps/${mapName}.png`;
+            mapImg.onload = () => { tCtx.clearRect(0, 0, WIDTH, HEIGHT); tCtx.drawImage(mapImg, 0, 0, WIDTH, HEIGHT); updateUI(); };
+            mapImg.onerror = () => { generateFallbackTerrain(treePositions); };
+        }
+
+        function generateFallbackTerrain(treePositions) {
+            tCtx.clearRect(0, 0, WIDTH, HEIGHT);
+            tCtx.fillStyle = '#66462c'; tCtx.beginPath(); tCtx.moveTo(0, HEIGHT);
+            let heightMap = [];
+            for (let x = 0; x < WIDTH; x++) { let y = 380 + Math.floor(40 * Math.sin(x * 0.01) + 15 * Math.sin(x * 0.035) - 15 * Math.sin(x * 0.005)); tCtx.lineTo(x, y); heightMap.push(y); }
+            tCtx.lineTo(WIDTH, HEIGHT); tCtx.closePath(); tCtx.fill();
+            treePositions.forEach(tx => {
+                let base_y = heightMap[tx]; let trunk_h = 45; let canopy_r = 26;
+                let trunkGrad = tCtx.createLinearGradient(tx - 6, 0, tx + 6, 0); trunkGrad.addColorStop(0, '#3e2723'); trunkGrad.addColorStop(0.5, '#5c4033'); trunkGrad.addColorStop(1, '#271915');
+                tCtx.fillStyle = trunkGrad; tCtx.fillRect(tx - 6, base_y - trunk_h, 12, trunk_h + 2);
+                let canopyGrad = tCtx.createRadialGradient(tx - 5, base_y - trunk_h - 10, 5, tx, base_y - trunk_h, canopy_r);
+                canopyGrad.addColorStop(0, '#2ecc71'); canopyGrad.addColorStop(1, '#1d8348'); tCtx.fillStyle = canopyGrad; tCtx.beginPath(); tCtx.arc(tx, base_y - trunk_h, canopy_r, Math.PI * 2, 0); tCtx.fill();
+            });
+            let imgData = tCtx.getImageData(0, 0, WIDTH, HEIGHT); let pixels = imgData.data;
+            for (let x = 0; x < WIDTH; x++) {
+                for (let y = 0; y < HEIGHT; y++) {
+                    let idx = (y * WIDTH + x) * 4;
+                    if (pixels[idx + 3] > 0) { 
+                        for (let ty = y; ty < Math.min(y + 6, HEIGHT); ty++) {
+                            let tidx = (ty * WIDTH + x) * 4;
+                            let grassDepth = ty - y; pixels[tidx] = 39 - grassDepth * 2;
+                            pixels[tidx + 1] = 174 - grassDepth * 5; pixels[tidx + 2] = 96 - grassDepth * 2;
+                        }
+                        break;
+                    }
+                }
+            }
+            tCtx.putImageData(imgData, 0, 0);
+            updateUI();
+        }
+
+        function updateTeamHealthBars() {
+            let t1Hp = 0;
+            let t2Hp = 0;
+            
+            for (let w_id in game.worms) {
+                let w = game.worms[w_id];
+                if (w.hp > 0) {
+                    if (w.team === 'team1') t1Hp += w.hp;
+                    else if (w.team === 'team2') t2Hp += w.hp;
+                }
+            }
+            
+            let t1Pct = Math.max(0, Math.min(100, (t1Hp / 500) * 100));
+            let t2Pct = Math.max(0, Math.min(100, (t2Hp / 500) * 100));
+            
+            let hb1 = document.getElementById('hbTeam1');
+            let hb2 = document.getElementById('hbTeam2');
+            let wrap1 = document.getElementById('wrapperTeam1');
+            let wrap2 = document.getElementById('wrapperTeam2');
+
+            if (hb1) {
+                hb1.style.width = t1Pct + '%';
+                if (t1Hp <= 0) hb1.style.filter = 'grayscale(1) brightness(0.3)';
+                else hb1.style.filter = 'none';
+            }
+            if (hb2) {
+                hb2.style.width = t2Pct + '%';
+                if (t2Hp <= 0) hb2.style.filter = 'grayscale(1) brightness(0.3)';
+                else hb2.style.filter = 'none';
+            }
+
+            if (wrap1 && wrap2) {
+                if (game.active_team === 'team1') {
+                    wrap1.classList.add('active-team-bar');
+                    wrap1.classList.remove('inactive-team-bar');
+                    wrap1.style.color = '#90ee90';
+                    wrap2.classList.remove('active-team-bar'); wrap2.classList.add('inactive-team-bar');
+                } else if (game.active_team === 'team2') {
+                    wrap2.classList.add('active-team-bar');
+                    wrap2.classList.remove('inactive-team-bar');
+                    wrap2.style.color = '#27ae60';
+                    wrap1.classList.remove('active-team-bar'); wrap1.classList.add('inactive-team-bar');
+                }
+            }
+        }
+
+        function updateUI() {
+            updateTeamHealthBars();
+            if (game.game_over) {
+                clearInterval(timerInterval);
+                let winText, winColor, winShadow;
+                if (game.winner === "Remíza") { winText = "Remíza!"; winColor = "#ffffff"; winShadow = "0 5px 15px rgba(255,255,255,0.4)"; } 
+                else if (game.winner === "Tým 1") { winText = "Vítězí Salátovky!"; winColor = "#90ee90"; winShadow = "0 5px 15px rgba(144,238,144,0.6)"; } 
+                else if (game.winner === "Tým 2") { winText = "Vítězí Nakladačky!"; winColor = "#27ae60"; winShadow = "0 5px 15px rgba(39,174,96,0.6)"; } 
+                else { winText = `Vítězí ${game.winner}!`; winColor = "#ff3385"; winShadow = "0 5px 15px rgba(255,51,133,0.6)"; }
+                const titleEl = document.getElementById('winnerTitle');
+                titleEl.innerText = winText; titleEl.style.color = winColor; titleEl.style.textShadow = winShadow;
+                document.getElementById('gameOverScreen').style.display = 'flex'; playSound('win_fanfare'); return;
+            }
+        }
+
+        function getGroundY(x, startY) {
+            let tx = Math.min(Math.max(Math.floor(x + 10), 0), WIDTH - 1);
+            let searchStart = startY !== undefined ? Math.max(0, Math.floor(startY) - 15) : 0;
+            let imgData = tCtx.getImageData(tx, 0, 1, HEIGHT).data;
+            for (let y = searchStart; y < HEIGHT; y++) { if (imgData[y * 4 + 3] > 0) return y - 22; } return HEIGHT;
+        }
+
+        function checkPixelCollision(x, y) {
+            if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) return false;
+            let pixel = tCtx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data; return pixel[3] > 0;
+        }
+
+        function checkWormHitboxCollision(bx, by) {
+            for (let w_id in game.worms) { let w = game.worms[w_id];
+            if (w.hp <= 0) continue; if (bx >= w.x && bx <= w.x + 20 && by >= w.y - 25 && by <= w.y + 22) { return w_id; } } return null;
+        }
+
+        function checkCrateCollision(w_id) {
+            let w = game.worms[w_id];
+            if (!w || w.hp <= 0) return;
+            for (let i = 0; i < game.crates.length; i++) {
+                let c = game.crates[i];
+                if (w.x < c.x + 14 && w.x + 20 > c.x && w.y - 25 < c.y + 14 && w.y + 22 > c.y) {
+                    playSound('crate_pickup');
+                    socket.emit('collect_crate', { crate_id: c.id, worm_id: w_id });
+                    game.crates.splice(i, 1);
+                    break;
+                }
+            }
+        }
+
+        function eraseTerrainCircle(bx, by, radius) {
+            tCtx.save();
+            tCtx.globalCompositeOperation = 'destination-out'; tCtx.beginPath();
+            for(let a=0; a<Math.PI*2; a+=0.3) {
+                let rOffset = radius + (Math.random()*4 - 2);
+                let cx = bx + Math.cos(a) * rOffset; let cy = by + Math.sin(a) * rOffset;
+                if(a === 0) tCtx.moveTo(cx, cy); else tCtx.lineTo(cx, cy);
+            }
+            tCtx.closePath();
+            tCtx.fill(); tCtx.restore();
+        }
+
+        function checkTurnEndAfterSpecial() {
+            if (turnEnded) return;
+            if (!turnHasAttacked) return;
+            if (checkTurnEndConditions()) {
+                if ((selectedWeapon === 'shotgun' && shotgunShotsLeft > 0) || (selectedWeapon === 'lupara' && luparaShotsLeft > 0)) { return; }
+                emitNextTurn();
+            }
+        }
+        
+        function getSurfaceExplosionPoint(x, y, vx, vy) {
+            let ex = x;
+            let ey = y; let len = Math.hypot(vx, vy);
+            if (len > 0) {
+                let dx = -(vx / len);
+                let dy = -(vy / len);
+                for (let step = 0; step < 35; step++) { if (!checkPixelCollision(ex, ey)) break; ex += dx; ey += dy; }
+            }
+            return { x: ex, y: ey };
+        }
+
+        function getSafeMuzzlePosition(startX, startY, angle, maxOffset) {
+            let dx = Math.cos(angle);
+            let dy = Math.sin(angle); let lastSafeX = startX; let lastSafeY = startY;
+            for (let i = 0; i <= maxOffset; i++) {
+                let cx = startX + dx * i;
+                let cy = startY + dy * i;
+                if (checkPixelCollision(cx, cy)) { return { x: lastSafeX, y: lastSafeY }; }
+                lastSafeX = cx; lastSafeY = cy;
+            }
+            return { x: startX + dx * maxOffset, y: startY + dy * maxOffset };
+        }
+
+        function canSeeTarget(startX, startY, targetX, targetY) {
+            let dx = targetX - startX;
+            let dy = targetY - startY;
+            let dist = Math.hypot(dx, dy);
+            let steps = dist / 5;
+            for (let i = 1; i < steps; i++) {
+                let cx = startX + (dx * i / steps);
+                let cy = startY + (dy * i / steps);
+                if (checkPixelCollision(cx, cy)) return false;
+            }
+            return true;
+        }
+
+        function checkImmediateLineOfFire(startX, startY, angle, myWormId, weapon) {
+            let dx = Math.cos(angle) * 3;
+            let dy = Math.sin(angle) * 3;
+            let cx = startX;
+            let cy = startY;
+            let myTeam = game.worms[myWormId].team;
+            for (let i = 0; i < 35; i++) {
+                cx += dx; cy += dy;
+                if (['bazooka', 'grenade', 'm79', 'molotov', 'frag'].includes(weapon)) {
+                     dy += 0.08;
+                }
+                if (checkPixelCollision(cx, cy)) return 'terrain';
+                let hitId = checkWormHitboxCollision(cx, cy);
+                if (hitId && hitId !== myWormId) {
+                    if (game.worms[hitId].team === myTeam) return 'friendly';
+                    else return 'enemy';
+                }
+            }
+            return 'clear';
+        }
+
+        function runAILogic() {
+            if (selectedMode !== 'vs_pc') return;
+            let waitingForSecondShot = (selectedWeapon === 'shotgun' && shotgunShotsLeft === 1) || (selectedWeapon === 'lupara' && luparaShotsLeft === 1);
+            if (game.game_over || isPaused || turnEnded || (turnHasAttacked && !waitingForSecondShot)) {
+                isAITurn = false; return;
+            }
+
+            let aiTeam = chosenPcTeam === 'team1' ? 'team2' : 'team1';
+            let playerTeam = chosenPcTeam;
+
+            if (game.active_team === aiTeam && game.worms[game.active_worm_id]) {
+                isAITurn = true;
+            } else {
+                isAITurn = false; aiState = 'IDLE'; return;
+            }
+
+            let myWorm = game.worms[game.active_worm_id];
+            let myPhys = wormPhysics[game.active_worm_id];
+            if (!myWorm || myWorm.hp <= 0 || !myPhys) return;
+
+            if (aiState === 'IDLE') {
+                aiState = 'THINKING';
+                aiActionTimer = Date.now() + 1000 + Math.random() * 1000;
+            } else if (aiState === 'THINKING') {
+                if (Date.now() > aiActionTimer) {
+                    
+                    let validTargets = [];
+                    for (let w_id in game.worms) {
+                        let w = game.worms[w_id];
+                        if (w.hp > 0 && w.team === playerTeam) validTargets.push(w);
+                    }
+                    validTargets.sort((a,b) => Math.hypot(a.x - myWorm.x, a.y - myWorm.y) - Math.hypot(b.x - myWorm.x, b.y - myWorm.y));
+                    if (validTargets.length === 0) { emitNextTurn(); return; }
+
+                    let ammo = game[aiTeam + '_ammo'] || {};
+                    let bestTarget = null;
+                    let bestAngle = 0;
+                    let bestWeapon = 'bazooka';
+                    let foundClearShot = false;
+                    let distToTarget = 0;
+
+                    for (let target of validTargets) {
+                        let dist = Math.hypot(target.x - myWorm.x, target.y - myWorm.y);
+                        let facingRight = target.x > myWorm.x;
+                        
+                        let relAngle = facingRight ?
+                            Math.atan2(target.y - myWorm.y, target.x - myWorm.x) : 
+                            Math.atan2(target.y - myWorm.y, myWorm.x - target.x);
+                        let isVisible = canSeeTarget(myWorm.x + 10, myWorm.y - 10, target.x + 10, target.y - 10);
+                        
+                        let chosenWeapon = 'bazooka';
+                        if (isVisible) {
+                            if (dist < 150 && (ammo.shotgun > 0 || ammo.lupara > 0)) chosenWeapon = ammo.shotgun > 0 ? 'shotgun' : 'lupara';
+                            else if (dist < 250 && ammo.uzi > 0) chosenWeapon = 'uzi';
+                            else if (ammo.railgun > 0 && Math.random() > (aiDifficulty === 'Těžká' ? 0.1 : 0.4)) chosenWeapon = 'railgun';
+                            else if (ammo.plasma > 0) chosenWeapon = 'plasma';
+                        } else {
+                            if (dist < 200 && ammo.grenade > 0 && Math.random() > 0.3) chosenWeapon = 'grenade';
+                            else if (dist < 250 && ammo.m79 > 0) chosenWeapon = 'm79';
+                        }
+                        if (['shotgun', 'lupara', 'uzi', 'plasma', 'railgun', 'm79'].includes(chosenWeapon) && (ammo[chosenWeapon] || 0) <= 0) {
+                            chosenWeapon = 'bazooka';
+                        }
+
+                        let anglesToTest = [];
+                        let baseArc = isVisible ? Math.min(dist / 600, 0.4) : Math.min(dist / 300, 1.2);
+                        if (['shotgun', 'lupara', 'uzi', 'plasma', 'railgun'].includes(chosenWeapon)) baseArc = 0;
+                        
+                        let windFactor = (!isVisible && chosenWeapon === 'bazooka') ? ((game.wind || 0) * 0.5) : 0;
+                        baseArc += (facingRight ? windFactor : -windFactor);
+
+                        anglesToTest.push(relAngle - baseArc);
+                        if (aiDifficulty !== 'Lehká') {
+                            anglesToTest.push(relAngle - baseArc - 0.3);
+                            anglesToTest.push(relAngle - baseArc - 0.6); 
+                        }
+
+                        for (let testAngle of anglesToTest) {
+                            if (testAngle < -1.65) testAngle = -1.65;
+                            if (testAngle > 1.65) testAngle = 1.65;
+
+                            let globalAngle = facingRight ? testAngle : Math.PI - testAngle;
+                            let safeMuzzle = getSafeMuzzlePosition(myWorm.x + 10, myWorm.y + 6, globalAngle, 38);
+                            
+                            let lof = checkImmediateLineOfFire(safeMuzzle.x, safeMuzzle.y, globalAngle, game.active_worm_id, chosenWeapon);
+                            if (lof !== 'terrain' && lof !== 'friendly') {
+                                bestTarget = target;
+                                bestAngle = testAngle;
+                                bestWeapon = chosenWeapon;
+                                distToTarget = dist;
+                                foundClearShot = true;
+                                myWorm.facing = facingRight ? "right" : "left";
+                                break;
+                            }
+                        }
+                        if (foundClearShot) break;
+                    }
+
+                    if (!foundClearShot) {
+                        if (!myPhys.hasMovedThisTurnAI && aiDifficulty !== 'Lehká') {
+                            myPhys.hasMovedThisTurnAI = true;
+                            aiState = 'MOVING';
+                            aiActionTimer = Date.now() + (aiDifficulty === 'Střední' ? 1500 : 2500); 
+                            aiKeysPressed.right = Math.random() > 0.5;
+                            aiKeysPressed.left = !aiKeysPressed.right;
+                            return;
+                        } else {
+                            if (aiDifficulty === 'Těžká') {
+                                emitNextTurn();
+                                return;
+                            } else {
+                                bestTarget = validTargets[0];
+                                bestWeapon = 'bazooka';
+                                bestAngle = -1.0; 
+                                distToTarget = Math.hypot(bestTarget.x - myWorm.x, bestTarget.y - myWorm.y);
+                                myWorm.facing = bestTarget.x > myWorm.x ? "right" : "left";
+                            }
+                        }
+                    }
+
+                    selectedWeapon = bestWeapon;
+                    if (game.active_team) teamWeapons[game.active_team] = bestWeapon;
+                    updateWeaponButtonsUI();
+                    
+                    let error = 0;
+                    if (aiDifficulty === 'Lehká') error = (Math.random() - 0.5) * 0.5;
+                    if (aiDifficulty === 'Střední') error = (Math.random() - 0.5) * 0.15;
+
+                    aiTargetAngle = bestAngle + error;
+                    if (aiTargetAngle < -1.65) aiTargetAngle = -1.65;
+                    if (aiTargetAngle > 1.65) aiTargetAngle = 1.65;
+                    if (['shotgun', 'lupara', 'uzi', 'plasma', 'm79', 'railgun'].includes(bestWeapon)) {
+                        aiTargetPower = 0;
+                    } else {
+                        let idealPower = (distToTarget / 7.5) + 10;
+                        if (aiDifficulty === 'Lehká') idealPower += (Math.random() - 0.5) * 40;
+                        if (aiDifficulty === 'Střední') idealPower += (Math.random() - 0.5) * 15;
+                        aiTargetPower = Math.min(100, Math.max(10, idealPower));
+                    }
+
+                    aiState = 'AIMING';
+                    aiActionTimer = Date.now() + 500;
+                }
+            } else if (aiState === 'MOVING') {
+                if (Date.now() > aiActionTimer || !myPhys.isGrounded) {
+                    aiKeysPressed.left = false;
+                    aiKeysPressed.right = false;
+                    aiState = 'THINKING';
+                    aiActionTimer = Date.now() + 300;
+                } else {
+                    if (Math.random() < (aiDifficulty === 'Těžká' ? 0.08 : 0.03) && myPhys.isGrounded) {
+                        playSound('jump');
+                        myPhys.isGrounded = false;
+                        myPhys.vx = aiKeysPressed.right ? 2.0 : -2.0; myPhys.vy = -4.8;
+                        turnWormLocked = true;
+                    }
+                }
+            } else if (aiState === 'AIMING') {
+                if (Date.now() > aiActionTimer) {
+                    let diff = aiTargetAngle - myWorm.angle;
+                    if (Math.abs(diff) > 0.06) {
+                        myWorm.angle += Math.sign(diff) * 0.05;
+                        socket.emit('sync_worm', { player_id: game.active_worm_id, x: myWorm.x, y: myWorm.y, angle: myWorm.angle, facing: myWorm.facing, hp: myWorm.hp });
+                    } else {
+                        aiState = 'CHARGING';
+                        if (aiTargetPower > 0) {
+                            currentPower = 0;
+                            pCont.style.display = 'block';
+                            startChargeSound();
+                        }
+                    }
+                }
+            } else if (aiState === 'CHARGING') {
+                if (aiTargetPower === 0) {
+                    aiState = 'FIRING';
+                } else {
+                    currentPower += 3.5;
+                    pBar.style.width = currentPower + '%';
+                    updateChargeSound(currentPower);
+                    if (currentPower >= aiTargetPower || currentPower >= 100) {
+                        aiState = 'FIRING';
+                        pCont.style.display = 'none';
+                        stopChargeSound();
+                    }
+                }
+            } else if (aiState === 'FIRING') {
+                aiState = 'DONE';
+                let shootAngle = myWorm.facing === "right" ? myWorm.angle : Math.PI - myWorm.angle;
+
+                turnHasAttacked = true;
+                updateSkipButtonState();
+                
+                let currentWpn = selectedWeapon;
+                if (selectedWeapon === 'uzi') { runUziAutofire(); }
+                else if (selectedWeapon === 'plasma') { runPlasmaAutofire(); }
+                else if (selectedWeapon === 'shotgun') { fireShotgunDirectly(); }
+                else if (selectedWeapon === 'lupara') { fireLuparaSalvo(); }
+                else if (selectedWeapon === 'm79') { fireM79Directly(); }
+                else if (selectedWeapon === 'railgun') { fireRailgunBeam(); }
+                else {
+                    const maxV = selectedWeapon === 'bazooka' ? 14 : 11;
+                    const finalV = (currentPower / 100) * maxV;
+                    let barrelOffset = 36;
+                    if (selectedWeapon === 'bazooka') barrelOffset = 45; if (selectedWeapon === 'molotov') barrelOffset = 38;
+                    let safeMuzzle = getSafeMuzzlePosition(myWorm.x + 10, myWorm.y + 6, shootAngle, barrelOffset);
+                    applyRecoil(shootAngle, selectedWeapon);
+                    localPendingBullets++;
+                    socket.emit('client_shoot', { type: selectedWeapon, x: safeMuzzle.x, y: safeMuzzle.y, vx: Math.cos(shootAngle) * finalV, vy: Math.sin(shootAngle) * finalV, angle: shootAngle });
+                }
+
+                setTimeout(() => {
+                    let needsSecondShot = (currentWpn === 'shotgun' && shotgunShotsLeft === 1) || (currentWpn === 'lupara' && luparaShotsLeft === 1);
+                    if (needsSecondShot && !game.game_over) {
+                        turnHasAttacked = false; 
+                        aiState = 'THINKING';
+                        aiActionTimer = Date.now() + 1000;
+                    }
+                }, 500);
+            }
+        }
+
+        function clientUpdate() {
+            if (!gameLoopRunning) return;
+            if (game.game_over) { render(); requestAnimationFrame(clientUpdate); return; }
+            if (isPaused) { render(); requestAnimationFrame(clientUpdate); return; }
+
+            runAILogic(); 
+
+            let stateChanged = false;
+            let isMoving = false; let windForce = (game.wind || 0) * 0.035;
+            if (game.clouds) { game.clouds.forEach(c => { c.x += c.speed; if (c.x > WIDTH + 50) c.x = -50; }); }
+            
+            fishes.forEach(f => {
+                f.x += f.speed * f.dir;
+                if (f.x < -50) { f.x = WIDTH + 50; f.yOffset = 20 + Math.random() * 80; }
+                if (f.x > WIDTH + 50) { f.x = -50; f.yOffset = 20 + Math.random() * 80; }
+            });
+            if (game.crates) {
+                for (let i = game.crates.length - 1; i >= 0; i--) {
+                    let c = game.crates[i];
+                    let hitGround = checkPixelCollision(c.x + 7, c.y + 14);
+                    
+                    if (!hitGround) {
+                        if (c.is_airdrop && !c.landed) { c.y += 0.6; } else { c.y += 1.5; }
+                    } else {
+                        if (c.is_airdrop && !c.landed) { c.landed = true; playSound('airdrop_land'); }
+                    }
+
+                    if (c.y + 14 > getWaterY(c.x + 7)) {
+                        createSplash(c.x + 7, getWaterY(c.x + 7));
+                        sinkingObjects.push({ x: c.x, y: c.y, vx: 0, vy: 0.5, type: c.is_airdrop ? 'airdrop' : 'crate', parachute: false, cType: c.type });
+                        game.crates.splice(i, 1);
+                        socket.emit('object_sunk', { kind: 'crate', id: c.id });
+                    }
+                }
+            }
+            
+            if (game.mines) {
+                for (let i = game.mines.length - 1; i >= 0; i--) {
+                    let m = game.mines[i];
+                    let hitGround = checkPixelCollision(m.x + 7, m.y + 14);
+                    if (!hitGround) { m.y += 1.5; }
+                    
+                    if (m.y + 14 > getWaterY(m.x + 7)) {
+                        createSplash(m.x + 7, getWaterY(m.x + 7));
+                        sinkingObjects.push({ x: m.x, y: m.y, vx: 0, vy: 0.5, type: 'mine' });
+                        game.mines.splice(i, 1);
+                        socket.emit('object_sunk', { kind: 'mine', id: m.id });
+                        continue;
+                    }
+
+                    if (!m.triggered) {
+                        for (let w_id in game.worms) {
+                            let w = game.worms[w_id];
+                            if (w.hp > 0 && Math.abs((w.x + 10) - (m.x + 7)) < 15 && Math.abs((w.y + 11) - (m.y + 10)) < 20) {
+                                m.triggered = true; m.triggerTime = Date.now(); playSound('mine_countdown'); break;
+                            }
+                        }
+                    } else {
+                        let elapsed = Date.now() - m.triggerTime;
+                        if (elapsed >= 1000 && !m.beep1) { m.beep1 = true; playSound('mine_countdown'); }
+                        if (elapsed >= 2000 && !m.beep2) { m.beep2 = true; playSound('mine_countdown'); }
+                        if (elapsed >= 3000) {
+                            let mx = m.x + 7; let my = m.y + 14;
+                            game.mines.splice(i, 1);
+                            executeExplosion(Math.floor(mx), Math.floor(my), 45, 'mine');
+                            continue;
+                        }
+                    }
+                }
+            }
+
+            if (game.graves) {
+                for (let i = game.graves.length - 1; i >= 0; i--) {
+                    let g = game.graves[i];
+                    if (!checkPixelCollision(g.x + 10, g.y + 22)) { g.y += 2.0; } 
+                    else {
+                        let groundY = getGroundY(g.x + 10, g.y + 22);
+                        if (Math.abs((g.y + 22) - groundY) > 2 && (g.y + 22) < groundY) { g.y = groundY - 22; }
+                    }
+                    if (g.y + 22 > getWaterY(g.x + 10)) {
+                        createSplash(g.x + 10, getWaterY(g.x + 10));
+                        sinkingObjects.push({ x: g.x, y: g.y, vx: 0, vy: 1.5, type: 'grave', team: g.team });
+                        game.graves.splice(i, 1);
+                    }
+                }
+            }
+
+            if (activeFires.length > 0) {
+                if (soundCache['molotov_fire'] && soundCache['molotov_fire'].paused) soundCache['molotov_fire'].play().catch(()=>{});
+            } else {
+                if (soundCache['molotov_fire'] && !soundCache['molotov_fire'].paused) { soundCache['molotov_fire'].pause(); soundCache['molotov_fire'].currentTime = 0; }
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx; p.y += p.vy; p.vy += p.gravity || 0;
+                if (p.type === 'spark') { 
+                    p.alpha -= p.fadeSpeed;
+                    if(checkPixelCollision(p.x, p.y)) { p.y -= p.vy; p.vy *= -0.5; p.vx *= 0.6; }
+                } else if (p.type === 'smoke') { 
+                    p.radius += 0.3; p.alpha -= p.fadeSpeed; p.vx *= 0.98; p.vy *= 0.98; p.vx += windForce * 0.5;
+                } else if (p.type === 'fire') { 
+                    p.radius *= 0.95; p.alpha -= p.fadeSpeed; p.vx += (Math.random()-0.5)*0.2; 
+                } else if (p.type === 'explosion_core') { 
+                    p.radius *= 1.2; p.alpha -= p.fadeSpeed;
+                } else if (p.type === 'water') {
+                    p.alpha -= p.fadeSpeed;
+                } else if (p.type === 'bubble') {
+                    p.alpha -= p.fadeSpeed; p.vx += windForce * 0.2;
+                } else { 
+                    p.alpha -= p.fadeSpeed || 0.02; p.radius *= p.shrinkSpeed || 0.96; 
+                }
+                if (p.alpha <= 0 || p.radius < 0.1) particles.splice(i, 1);
+            }
+            
+            for (let i = smokeTrails.length - 1; i >= 0; i--) {
+                let s = smokeTrails[i];
+                s.alpha -= 0.015; s.radius += 0.2; s.y -= 0.1; s.x += windForce * 1.5;
+                if (s.alpha <= 0) smokeTrails.splice(i, 1);
+            }
+            
+            if (muzzleFlash) { muzzleFlash.duration--; if (muzzleFlash.duration <= 0) muzzleFlash = null; }
+
+            for (let i = railgunBeams.length - 1; i >= 0; i--) {
+                railgunBeams[i].life--;
+                if (railgunBeams[i].life <= 0) { railgunBeams.splice(i, 1); checkTurnEndAfterSpecial(); }
+            }
+
+            Object.keys(game.worms).forEach((w_id) => {
+                const w = game.worms[w_id]; if (!wormPhysics[w_id]) return; const phys = wormPhysics[w_id];
+
+                if (w && w.hp > 0) {
+                    let wY = getWaterY(w.x + 10);
+                    if (w.y + 11 > wY) {
+                        w.hp = 0; phys.isDrowning = true; w.dead_processed = true; phys.isGrounded = false;
+                        createSplash(w.x + 10, wY);
+                        socket.emit('client_explosion', { ex: w.x, ey: w.y, er: 0, rocks: game.rocks, crates: game.crates, mines: game.mines, worms: game.worms });
+                        if (w_id === game.active_worm_id) emitNextTurn();
+                        return;
+                    }
+
+                    if (w.y > HEIGHT + 20) {
+                        w.hp = 0; socket.emit('client_explosion', { ex: w.x, ey: w.y, er: 0, rocks: game.rocks, crates: game.crates, mines: game.mines, worms: game.worms }); return;
+                    }
+   
+                    if (!phys.isGrounded) {
+                        phys.vy += 0.22;
+                        let nextX = w.x + phys.vx; let sideCheckY = w.y + 10;
+                        if (checkPixelCollision(nextX + 10, sideCheckY)) phys.vx = 0;
+                        else w.x = nextX;
+                        w.y += phys.vy; phys.vx *= 0.98;
+                        if (phys.vy < 0) {
+                            if (checkPixelCollision(w.x + 10, w.y - 25) || checkPixelCollision(w.x + 5, w.y - 20) || checkPixelCollision(w.x + 15, w.y - 20)) {
+                                phys.vy = 0; w.y += 2;
+                            }
+                        }
+
+                        if (phys.vy >= 0) {
+                            if (checkPixelCollision(w.x + 10, w.y + 22)) {
+                                let exactGround = getGroundY(w.x, w.y + 22);
+                                if (Math.abs(w.y - exactGround) < 15) { w.y = exactGround; }
+                                let justLanded = !phys.isGrounded;
+                                let landingVy = phys.vy;
+                                phys.vy = 0; phys.vx = 0; phys.isGrounded = true;
+                                if (justLanded) {
+                                    if (phys.hasLandedOnce) {
+                                        if (landingVy > 7.5) { 
+                                            let fallDmg = Math.floor((landingVy - 7.5) * 6);
+                                            if (fallDmg > 0) {
+                                                w.hp = Math.max(0, w.hp - fallDmg);
+                                                playSound('fall');
+                                                if (w_id === game.active_worm_id) stateChanged = true;
+                                                if (w.hp === 0) {
+                                                    socket.emit('client_explosion', { ex: w.x, ey: w.y, er: 0, rocks: game.rocks, crates: game.crates, mines: game.mines, worms: game.worms });
+                                                    if (w_id === game.active_worm_id) emitNextTurn();
+                                                }
+                                            }
+                                        }
+                                    } else { phys.hasLandedOnce = true; }
+
+                                    if (w.hp > 0) { socket.emit('sync_worm', { player_id: w_id, x: w.x, y: w.y, angle: w.angle, facing: w.facing, hp: w.hp }); }
+                                }
+                            }
+                        }
+                        if (w_id === game.active_worm_id) stateChanged = true;
+                    } else {
+                        let feetY = w.y + 22;
+                        if (!checkPixelCollision(w.x + 10, feetY + 1) && !checkPixelCollision(w.x + 10, feetY + 3)) {
+                            phys.isGrounded = false; phys.vy = 0; phys.vx = 0;
+                        } else {
+                            let exactGroundY = getGroundY(w.x, w.y + 22);
+                            if (Math.abs(w.y - exactGroundY) > 1 && Math.abs(w.y - exactGroundY) < 6) { w.y = exactGroundY;
+                            if (w_id === game.active_worm_id) stateChanged = true; }
+                        }
+                    }
+                    if (w.x < 0) { w.x = 0; phys.vx = 0; }
+                    if (w.x > WIDTH - 20) { w.x = WIDTH - 20; phys.vx = 0; }
+
+                    if (w.hp > 0 && w_id === game.active_worm_id) checkCrateCollision(w_id);
+                } else if (w && w.hp <= 0) {
+                    if (phys && phys.isDrowning) {
+                        w.y += 0.8;
+                        if (Math.random() < 0.1) {
+                            particles.push({ type: 'bubble', x: w.x + 10 + (Math.random()-0.5)*10, y: w.y + 10, vx: (Math.random()-0.5)*0.5, vy: -Math.random() - 0.5, radius: Math.random()*2+1, alpha: 0.7, fadeSpeed: 0.02, color: 'rgba(255, 255, 255, 0.6)' });
+                        } 
+                        if (w.y > HEIGHT + 50) { phys.isDrowning = false; }
+                        return;
+                    }
+                    if (!w.dead_processed) {
+                        w.dead_processed = true;
+                        if (!game.graves) game.graves = [];
+                        if (w.y < HEIGHT + 10) {
+                            executeExplosion(Math.floor(w.x + 10), Math.floor(w.y + 11), 30, 'grave', true);
+                            game.graves.push({ x: w.x, y: w.y, team: w.team });
+                        }
+                    }
+                }
+            });
+            const myWorm = game.worms[game.active_worm_id]; const myPhys = wormPhysics[game.active_worm_id];
+
+            if (myWorm && myWorm.hp > 0 && myPhys) {
+                let aimUpActive = false, aimDownActive = false, walkLeft = false, walkRight = false;
+                let isMyTurn = (localTeam === 'both' || localTeam === game.active_team);
+                
+                if (isMyTurn) {
+                    aimUpActive = userSettings.invertAim ? keysPressed.down : keysPressed.up;
+                    aimDownActive = userSettings.invertAim ? keysPressed.up : keysPressed.down;
+                    walkLeft = keysPressed.left;
+                    walkRight = keysPressed.right;
+                } else if (isAITurn) {
+                    walkLeft = aiKeysPressed.left;
+                    walkRight = aiKeysPressed.right;
+                }
+
+                if (aimUpActive) { myWorm.angle -= 0.04; stateChanged = true; turnWormLocked = true; }
+                if (aimDownActive) { myWorm.angle += 0.04; stateChanged = true; turnWormLocked = true; }
+                if (myWorm.angle < -1.65) myWorm.angle = -1.65; if (myWorm.angle > 1.65) myWorm.angle = 1.65;
+                if (walkLeft) { myWorm.facing = "left"; turnWormLocked = true; stateChanged = true; }
+                if (walkRight) { myWorm.facing = "right"; turnWormLocked = true; stateChanged = true; }
+
+                if (myPhys.isGrounded) {
+                    let targetX = myWorm.x; let stepSize = 1.2;
+                    if (walkLeft) { targetX -= stepSize; isMoving = true; }
+                    if (walkRight) { targetX += stepSize; isMoving = true; }
+
+                    if (isMoving) {
+                        let currentY = myWorm.y;
+                        let exactGroundY = getGroundY(targetX, currentY + 22); let diff = exactGroundY - currentY;
+                        if (diff < -8) { isMoving = false; } 
+                        else if (diff > 8) { myWorm.x = targetX; myPhys.isGrounded = false; stateChanged = true; walkAnimTime += 0.26; } 
+                        else {
+                            myWorm.x = targetX; myWorm.y = exactGroundY; stateChanged = true; walkAnimTime += 0.26;
+                            if (Date.now() - lastStepSoundTime > 320) { playSound('step'); lastStepSoundTime = Date.now(); }
+                        }
+                    }
+                }
+                
+                if (stateChanged) { socket.emit('sync_worm', { player_id: game.active_worm_id, x: myWorm.x, y: myWorm.y, angle: myWorm.angle, facing: myWorm.facing, hp: myWorm.hp }); }
+            }
+            if (!isMoving && game.active_worm_id) walkAnimTime = 0;
+            if (localBullet) {
+                localBullet.x += localBullet.vx; localBullet.y += localBullet.vy;
+                let waterY = getWaterY(localBullet.x);
+                if (localBullet.y > waterY && !localBullet.inWater) {
+                    localBullet.inWater = true; createSplash(localBullet.x, waterY);
+                    if (['bazooka', 'grenade', 'frag', 'm79', 'molotov'].includes(localBullet.type)) {
+                        sinkingObjects.push({ x: localBullet.x, y: localBullet.y, vx: localBullet.vx*0.2, vy: localBullet.vy*0.2, type: localBullet.type, flashState: localBullet.flashState || false });
+                        if (localBullet.type === 'molotov') molotovInFlight = false;
+                        localBullet = null; checkTurnEndAfterSpecial();
+                    }
+                }
+
+                if (localBullet) {
+                    let hitWormId = checkWormHitboxCollision(localBullet.x, localBullet.y);
+                    if (localBullet.type === 'bazooka' || localBullet.type === 'm79') {
+                        localBullet.vy += (localBullet.type === 'm79') ? 0.21 : 0.15; localBullet.vx += windForce; 
+                        smokeTrails.push({ x: localBullet.x, y: localBullet.y, radius: localBullet.type === 'm79' ? 1.8 : 2, alpha: 0.7, color: '#888' });
+                        if (localBullet.type === 'bazooka') {
+                            smokeTrails.push({ x: localBullet.x + (Math.random()-0.5)*3, y: localBullet.y + (Math.random()-0.5)*3, radius: 4, alpha: 0.5, color: '#555' });
+                            particles.push({ type: 'fire', x: localBullet.x - Math.cos(Math.atan2(localBullet.vy, localBullet.vx))*8, y: localBullet.y - Math.sin(Math.atan2(localBullet.vy, localBullet.vx))*8, vx: 0, vy: 0, radius: 3, alpha: 1, fadeSpeed: 0.1, color: '#ffcc00' });
+                        }
+                        if (hitWormId || checkPixelCollision(localBullet.x, localBullet.y)) {
+                            let ep = getSurfaceExplosionPoint(localBullet.x, localBullet.y, localBullet.vx, localBullet.vy);
+                            executeExplosion(Math.floor(ep.x), Math.floor(ep.y), localBullet.type === 'm79' ? 32 : 35, localBullet.type);
+                            localBullet = null; checkTurnEndAfterSpecial();
+                        }
+                    } else if (localBullet.type === 'shotgun') {
+                        localBullet.vy += 0.12; localBullet.vx += windForce * 0.6;
+                        particles.push({ type: 'fire', x: localBullet.x, y: localBullet.y, vx: 0, vy: 0, radius: 1.5, alpha: 0.8, fadeSpeed: 0.2, color: '#fff' });
+                        if (hitWormId || checkPixelCollision(localBullet.x, localBullet.y)) {
+                            let ep = getSurfaceExplosionPoint(localBullet.x, localBullet.y, localBullet.vx, localBullet.vy);
+                            executeExplosion(Math.floor(ep.x), Math.floor(ep.y), 18, 'shotgun');
+                            localBullet = null; checkShotgunTurnEnd();
+                        }
+                    } else if (localBullet.type === 'molotov') {
+                        localBullet.vy += 0.20; localBullet.vx += windForce; 
+                        particles.push({ type: 'fire', x: localBullet.x - localBullet.vx*0.5, y: localBullet.y - localBullet.vy*0.5, vx: (Math.random()-0.5), vy: -(Math.random()*2), radius: 4, alpha: 1, fadeSpeed: 0.08, color: ['#e74c3c','#e67e22'][Math.floor(Math.random()*2)] });
+                        if (hitWormId || checkPixelCollision(localBullet.x, localBullet.y)) {
+                            molotovInFlight = false;
+                            let ep = getSurfaceExplosionPoint(localBullet.x, localBullet.y, localBullet.vx, localBullet.vy);
+                            executeExplosion(Math.floor(ep.x), Math.floor(ep.y), 25, 'molotov');
+                            activeFires.push({ x: ep.x, y: ep.y, radius: 35, life: 300 });
+                            localBullet = null; checkTurnEndAfterSpecial();
+                        }
+                    } else if (localBullet.type === 'grenade' || localBullet.type === 'frag') {
+                        localBullet.vy += 0.24; localBullet.vx += windForce; 
+                        if (!localBullet.timerStarted) {
+                            localBullet.timerStarted = true;
+                            localBullet.flashState = false; let currentBullet = localBullet;
+                            let flashInterval = setInterval(() => { if (localBullet === currentBullet) localBullet.flashState = !localBullet.flashState; else clearInterval(flashInterval); }, 150);
+                            setTimeout(() => { 
+                                if (localBullet === currentBullet) { 
+                                    clearInterval(flashInterval); 
+                                    let bx = Math.floor(localBullet.x); let by = Math.floor(localBullet.y); let bType = localBullet.type;
+                                    executeExplosion(bx, by, bType === 'frag' ? 40 : 50, bType); 
+                                    if(bType === 'frag') {
+                                        for(let s=0; s<5; s++) {
+                                            let angle = Math.PI + (Math.random() * Math.PI); let speed = Math.random() * 5 + 3;
+                                            activeShrapnels.push({ x: bx, y: by - 5, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed });
+                                        }
+                                    }
+                                    localBullet = null; checkTurnEndAfterSpecial(); 
+                                } 
+                            }, 1500);
+                        }
+                        if (checkPixelCollision(localBullet.x, localBullet.y)) {
+                            playSound('bounce');
+                            let ep = getSurfaceExplosionPoint(localBullet.x, localBullet.y, localBullet.vx, localBullet.vy);
+                            localBullet.x = ep.x; localBullet.y = ep.y; localBullet.vx *= -0.5; localBullet.vy *= -0.4; localBullet.vx *= 0.8;
+                        }
+                    }
+                    
+                    if (localBullet) {
+                        let bx = Math.floor(localBullet.x); let by = Math.floor(localBullet.y);
+                        if (bx < 0 || bx >= WIDTH || by > HEIGHT + 50) { 
+                            let wasShotgun = (localBullet.type === 'shotgun');
+                            let wasMolotov = (localBullet.type === 'molotov');
+                            if (wasMolotov) molotovInFlight = false;
+                            localBullet = null; 
+                            if (wasShotgun) checkShotgunTurnEnd(); else checkTurnEndAfterSpecial();
+                        }
+                    }
+                }
+            }
+
+            for (let i = activeLuparaPellets.length - 1; i >= 0; i--) {
+                let p = activeLuparaPellets[i];
+                p.x += p.vx; p.y += p.vy; p.vy += 0.18; p.vx += windForce * 0.5;
+                let wY = getWaterY(p.x);
+                if (p.y > wY && !p.inWater) { p.inWater = true; createSplash(p.x, wY); }
+                particles.push({ type: 'fire', x: p.x, y: p.y, vx: 0, vy: 0, radius: 1.2, alpha: 0.8, fadeSpeed: 0.25, color: '#f39c12' });
+                let hitWormId = checkWormHitboxCollision(p.x, p.y);
+                if (hitWormId || checkPixelCollision(p.x, p.y)) {
+                    let ep = getSurfaceExplosionPoint(p.x, p.y, p.vx, p.vy);
+                    executeExplosion(Math.floor(ep.x), Math.floor(ep.y), 13, 'lupara');
+                    activeLuparaPellets.splice(i, 1); checkLuparaTurnEnd(); continue;
+                }
+                if (p.x < 0 || p.x >= WIDTH || p.y > HEIGHT + 10) { activeLuparaPellets.splice(i, 1); checkLuparaTurnEnd(); }
+            }
+
+            for (let i = activeUziBullets.length - 1; i >= 0; i--) {
+                let b = activeUziBullets[i];
+                b.x += b.vx; b.y += b.vy; b.vy += 0.08; b.vx += windForce * 0.4;
+                let wY = getWaterY(b.x);
+                if (b.y > wY && !b.inWater) { b.inWater = true; createSplash(b.x, wY); }
+                particles.push({ type: 'fire', x: b.x, y: b.y, vx: 0, vy: 0, radius: 1, alpha: 0.8, fadeSpeed: 0.3, color: '#f1c40f' });
+                let hitWormId = checkWormHitboxCollision(b.x, b.y);
+                if (hitWormId || checkPixelCollision(b.x, b.y)) {
+                    let ep = getSurfaceExplosionPoint(b.x, b.y, b.vx, b.vy);
+                    executeExplosion(Math.floor(ep.x), Math.floor(ep.y), 10, 'uzi');
+                    activeUziBullets.splice(i, 1); checkTurnEndAfterSpecial(); continue;
+                }
+                if (b.x < 0 || b.x >= WIDTH || b.y > HEIGHT + 10) { activeUziBullets.splice(i, 1); checkTurnEndAfterSpecial(); }
+            }
+
+            for (let i = activePlasmaBullets.length - 1; i >= 0; i--) {
+                let b = activePlasmaBullets[i];
+                b.vx += windForce; b.x += b.vx; b.y += b.vy; b.vy += 0.02;
+                let wY = getWaterY(b.x);
+                if (b.y > wY) { createSplash(b.x, wY); activePlasmaBullets.splice(i, 1); checkTurnEndAfterSpecial(); continue; }
+                particles.push({ type: 'fire', x: b.x, y: b.y, vx: 0, vy: 0, radius: 2.5, alpha: 0.9, fadeSpeed: 0.2, color: '#00e5ff' });
+                let hitWormId = checkWormHitboxCollision(b.x, b.y);
+                if (hitWormId || checkPixelCollision(b.x, b.y)) {
+                    let ep = getSurfaceExplosionPoint(b.x, b.y, b.vx, b.vy);
+                    executeExplosion(Math.floor(ep.x), Math.floor(ep.y), 15, 'plasma');
+                    activePlasmaBullets.splice(i, 1); checkTurnEndAfterSpecial(); continue;
+                }
+                if (b.x < 0 || b.x >= WIDTH || b.y > HEIGHT + 10) { activePlasmaBullets.splice(i, 1); checkTurnEndAfterSpecial(); }
+            }
+
+            for (let i = activeShrapnels.length - 1; i >= 0; i--) {
+                let s = activeShrapnels[i];
+                s.vx += windForce * 0.5; s.vy += 0.15; s.x += s.vx; s.y += s.vy;
+                let wY = getWaterY(s.x);
+                if (s.y > wY) {
+                    createSplash(s.x, wY);
+                    if (s.isFire) { activeShrapnels.splice(i, 1); checkTurnEndAfterSpecial(); }
+                    else { sinkingObjects.push({ x: s.x, y: s.y, vx: s.vx*0.2, vy: s.vy*0.2, type: 'shrapnel' }); activeShrapnels.splice(i, 1); checkTurnEndAfterSpecial(); }
+                    continue;
+                }
+                
+                if (s.isFire) {
+                    particles.push({ type: 'fire', x: s.x, y: s.y, vx: 0, vy: 0, radius: 2.5, alpha: 0.9, fadeSpeed: 0.1, color: ['#e74c3c','#e67e22'][Math.floor(Math.random()*2)] });
+                } else { smokeTrails.push({ x: s.x, y: s.y, radius: 1.5, alpha: 0.6, color: '#6c3483' }); }
+                
+                if (checkWormHitboxCollision(s.x, s.y) || checkPixelCollision(s.x, s.y)) {
+                    let ep = getSurfaceExplosionPoint(s.x, s.y, s.vx, s.vy);
+                    if (s.isFire) {
+                        executeExplosion(Math.floor(ep.x), Math.floor(ep.y), 15, 'debris');
+                        activeFires.push({ x: ep.x, y: ep.y, radius: 25, life: 200 });
+                    } else { executeExplosion(Math.floor(ep.x), Math.floor(ep.y), 20, 'shrapnel'); }
+                    activeShrapnels.splice(i, 1); checkTurnEndAfterSpecial(); continue;
+                }
+                if(s.y > HEIGHT + 50 || s.x < -50 || s.x > WIDTH + 50) { activeShrapnels.splice(i, 1); checkTurnEndAfterSpecial(); }
+            }
+
+            for (let i = activeFires.length - 1; i >= 0; i--) {
+                let f = activeFires[i];
+                f.life--; let wY = getWaterY(f.x); if (f.y + 5 > wY) f.life = 0;
+                if (!checkPixelCollision(f.x, f.y + 10)) { f.y += 1.5; }
+                for(let fl=0; fl<2; fl++){ particles.push({ type:'fire', x: f.x+(Math.random()-0.5)*f.radius, y: f.y+(Math.random()-0.5)*(f.radius*0.5), vx:(Math.random()-0.5), vy:-(Math.random()*2+1), radius: Math.random()*6+4, alpha: 0.8, fadeSpeed: 0.04, color: ['#ffeb3b', '#ff9800', '#f44336'][Math.floor(Math.random()*3)] }); }
+                if(Math.random() < 0.4) { particles.push({ type:'smoke', x: f.x+(Math.random()-0.5)*f.radius, y: f.y-10, vx:(Math.random()-0.5)*0.5, vy:-(Math.random()*1.5+0.5), radius: Math.random()*10+5, alpha: 0.5, fadeSpeed: 0.015, color: '#333' }); }
+                if (f.life % 15 === 0) { 
+                    let burnX = f.x + (Math.random() - 0.5) * (f.radius * 0.8);
+                    let burnY = f.y + (Math.random() - 0.5) * (f.radius * 0.8); let burnR = Math.random() * 8 + 8;
+                    eraseTerrainCircle(burnX, burnY, burnR);
+                    Object.keys(game.worms).forEach(w_id => {
+                        let w = game.worms[w_id];
+                        if (w.hp > 0 && Math.hypot(w.x+10 - burnX, w.y+11 - burnY) < burnR + 15) { w.hp = Math.max(0, w.hp - 3); }
+                    });
+                    let mineHit = false;
+                    if (game.mines) {
+                        for (let i = game.mines.length - 1; i >= 0; i--) {
+                            let m = game.mines[i];
+                            if (Math.hypot((m.x + 7) - burnX, (m.y + 7) - burnY) < burnR + 15) {
+                                let mx = m.x + 7; let my = m.y + 14;
+                                game.mines.splice(i, 1);
+                                executeExplosion(Math.floor(mx), Math.floor(my), 45, 'mine');
+                                mineHit = true;
+                            }
+                        }
+                    }
+                    if(f.life > 0 && game.active_team) { socket.emit('client_explosion', { ex: burnX, ey: burnY, er: burnR, rocks: game.rocks, crates: game.crates, mines: game.mines, worms: game.worms }); }
+                }
+                if (f.life <= 0) { activeFires.splice(i, 1); checkTurnEndAfterSpecial(); }
+            }
+
+            for (let i = sinkingObjects.length - 1; i >= 0; i--) {
+                let obj = sinkingObjects[i];
+                obj.vy += 0.05; obj.vy *= 0.95; obj.vx *= 0.95;
+                obj.x += obj.vx; obj.y += obj.vy;
+                if (Math.random() < 0.15) { particles.push({ type: 'bubble', x: obj.x+(Math.random()-0.5)*4, y: obj.y, vx: (Math.random()-0.5)*0.5, vy: -Math.random(), radius: Math.random()*2+1, alpha: 0.6, fadeSpeed: 0.02, color: 'rgba(255,255,255,0.5)' }); }
+                if (obj.y > HEIGHT + 50) sinkingObjects.splice(i, 1);
+            }
+
+            const btnSwitch = document.getElementById('btnSwitchWorm');
+            let isMyTurn = (localTeam === 'both' || localTeam === game.active_team);
+            let switchLocked = turnWormLocked || !isMyTurn || game.game_over;
+            if (switchLocked && !btnSwitch.classList.contains('btn-switch-locked')) {
+                btnSwitch.classList.add('btn-switch-locked');
+            } else if (!switchLocked && btnSwitch.classList.contains('btn-switch-locked')) {
+                btnSwitch.classList.remove('btn-switch-locked');
+            }
+
+            render(); requestAnimationFrame(clientUpdate);
+        }
+
+        function checkShotgunTurnEnd() {
+            let teamAmmo = game[game.active_team + "_ammo"] || {};
+            let outOfAmmo = (teamAmmo['shotgun'] || 0) <= 0;
+            if ((shotgunShotsLeft <= 0 || outOfAmmo) && activeShrapnels.length === 0 && activeFires.length === 0) { emitNextTurn(); } else { updateUI(); }
+        }
+        function checkLuparaTurnEnd() {
+            let teamAmmo = game[game.active_team + "_ammo"] || {};
+            let outOfAmmo = (teamAmmo['lupara'] || 0) <= 0;
+            if (activeLuparaPellets.length === 0) { if ((luparaShotsLeft <= 0 || outOfAmmo) && activeShrapnels.length === 0 && activeFires.length === 0) emitNextTurn(); else updateUI(); }
+        }
+
+        function applyRecoil(shootAngle, weaponType) {
+            let w_id = game.active_worm_id;
+            if (!w_id || !game.worms[w_id] || game.worms[w_id].hp <= 0) return;
+            const recoilStrength = { bazooka: { vx: 2.8, vy: 1.0 }, m79: { vx: 2.2, vy: 0.8 }, grenade: { vx: 1.2, vy: 0.5 }, frag: { vx: 1.2, vy: 0.5 }, molotov: { vx: 1.0, vy: 0.4 }, shotgun: { vx: 3.5, vy: 1.2 }, lupara: { vx: 4.0, vy: 1.4 }, uzi: { vx: 0.4, vy: 0.1 }, plasma: { vx: 0.5, vy: 0.1 }, railgun: { vx: 5.0, vy: 1.8 } };
+            let str = recoilStrength[weaponType] || { vx: 1.0, vy: 0.4 };
+            let recoilAngle = shootAngle + Math.PI;
+            let phys = wormPhysics[w_id];
+            if (phys) { phys.vx += Math.cos(recoilAngle) * str.vx; phys.vy += Math.sin(recoilAngle) * str.vy - 0.5; phys.isGrounded = false; }
+        }
+
+        function executeExplosion(bx, by, radius, type, isVisualOnly = false) {
+            triggerVibrate(100);
+            try {
+                let snd = 'explosion_bazooka';
+                if (type === 'grenade') snd = 'explosion_grenade'; else if (type === 'frag') snd = 'explosion_frag';
+                else if (type === 'shrapnel') snd = 'explosion_shrapnel'; else if (type === 'shotgun') snd = 'explosion_shotgun';
+                else if (type === 'lupara') snd = 'explosion_lupara'; else if (type === 'uzi') snd = 'explosion_uzi';
+                else if (type === 'molotov') snd = 'explosion_molotov'; else if (type === 'plasma') snd = 'explosion_plasma';
+                else if (type === 'm79') snd = 'explosion_m79'; else if (type === 'railgun') snd = 'explosion_railgun';
+                else if (type === 'grave') snd = 'explosion_grave'; else if (type === 'mine') snd = 'explosion_mine';
+                else if (type === 'crate') { snd = 'explosion_crate'; playSound('crate_fire'); }
+                else if (type === 'debris') snd = 'explosion_debris';
+                playSound(snd);
+            } catch(e) {}
+            eraseTerrainCircle(bx, by, radius);
+            particles.push({ type: 'explosion_core', x: bx, y: by, vx: 0, vy: 0, radius: radius * 0.2, alpha: 1, fadeSpeed: 0.15, color: (type === 'plasma' || type === 'railgun') ? '#00e5ff' : '#ffffff' });
+            let particleCount = type === 'bazooka' ? 45 : (type === 'grenade' ? 60 : (type === 'frag' ? 50 : ((type === 'molotov' || type === 'debris') ? 35 : (type === 'm79' ? 38 : (type === 'shotgun' ? 20 : (type === 'lupara' ? 14 : (type === 'plasma' ? 15 : (type === 'railgun' ? 55 : (type === 'crate' ? 35 : (type === 'mine' ? 50 : 10))))))))));
+            let maxDmg = type === 'bazooka' ? 50 : (type === 'grenade' ? 65 : (type === 'frag' ? 45 : (type === 'shrapnel' ? 25 : ((type === 'molotov' || type === 'debris') ? 20 : (type === 'm79' ? 42 : (type === 'shotgun' ? 30 : (type === 'lupara' ? 24 : (type === 'plasma' ? 12 : (type === 'railgun' ? 85 : (type === 'crate' ? 25 : (type === 'mine' ? 50 : 6)))))))))));
+            for (let i = 0; i < particleCount; i++) {
+                let pAngle = Math.random() * Math.PI * 2;
+                let pSpeed = (type === 'uzi' || type === 'shotgun' || type === 'lupara' || type === 'shrapnel' || type === 'plasma') ? (Math.random() * 4 + 1) : (Math.random() * 8 + 2);
+                let pType = Math.random() > 0.6 ? 'smoke' : 'spark';
+                let colorsSpark = (type === 'plasma' || type === 'railgun') ? ['#00e5ff', '#ffffff', '#ff00ff'] : ['#ffeb3b', '#ff9800', '#f44336', '#ffffff'];
+                let colorsSmoke = (type === 'plasma' || type === 'railgun') ? ['#1a3a40', '#112228', '#222222'] : ['#222222', '#444444', '#666666', '#111111'];
+                particles.push({
+                    type: pType, x: bx, y: by, vx: Math.cos(pAngle) * pSpeed, vy: Math.sin(pAngle) * pSpeed - 1.5, gravity: pType === 'spark' ? 0.1 : 0, 
+                    radius: pType === 'smoke' ? (Math.random() * 8 + 4) : (Math.random() * 3 + 1), alpha: pType === 'smoke' ? 0.7 : 1, fadeSpeed: pType === 'smoke' ? (Math.random() * 0.02 + 0.01) : (Math.random() * 0.05 + 0.02), 
+                    color: pType === 'smoke' ? colorsSmoke[Math.floor(Math.random()*colorsSmoke.length)] : colorsSpark[Math.floor(Math.random()*colorsSpark.length)]
+                });
+            }
+
+            let playedHitSound = false;
+            if (!isVisualOnly) {
+                Object.keys(game.worms).forEach((w_id) => {
+                    let w = game.worms[w_id]; if (!w || w.hp <= 0) return;
+                    let dist = Math.hypot((w.x + 10) - bx, (w.y + 11) - by);
+                  
+                    if (dist < radius + 25) {
+                        let dmg = Math.floor((1 - (dist / (radius + 25))) * maxDmg); w.hp = Math.max(0, w.hp - dmg);
+                        let forceFactor = (type === 'uzi' || type === 'shotgun' || type === 'lupara' || type === 'shrapnel' || type === 'plasma') ? 0.4 : 1.0;
+                        let force = (1 - (dist / (radius + 25))) * ((type === 'uzi' || type === 'shotgun' || type === 'lupara' || type === 'shrapnel' || type === 'plasma') ? 2 : 8) * forceFactor;
+                        if (type === 'm79') force *= 0.9; 
+                        if (type === 'railgun') force *= 1.4; 
+                        
+                        if (wormPhysics[w_id]) {
+                            wormPhysics[w_id].vx = (((w.x + 10) - bx) / (dist || 1)) * force;
+                            wormPhysics[w_id].vy = (((w.y + 11) - by) / (dist || 1)) * force - ((type === 'uzi' || type === 'shotgun' || type === 'lupara' || type === 'shrapnel' || type === 'plasma') ? 0.4 : 2.5);
+                            wormPhysics[w_id].isGrounded = false;
+                        }
+
+                        if (dmg > 0) {
+                            if (!playedHitSound && ['uzi', 'shotgun', 'lupara', 'plasma', 'railgun'].includes(type)) { playSound('hit'); playedHitSound = true; }
+                            let bloodCount = Math.min(4 + Math.floor(dmg / 8), 18);
+                            let bloodColors = ['#2ecc71', '#27ae60', '#1e8449', '#58d68d', '#82e0aa'];
+                            let hitX = w.x + 10; let hitY = w.y + 11;
+                            let splashAngle = Math.atan2(hitY - by, hitX - bx);
+                            for (let b = 0; b < bloodCount; b++) {
+                                let spread = (Math.random() - 0.5) * Math.PI * 1.2;
+                                let angle = splashAngle + spread; let speed = Math.random() * 4 + 1.5;
+                                particles.push({
+                                    type: 'blood', x: hitX + (Math.random() - 0.5) * 6, y: hitY + (Math.random() - 0.5) * 6, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - Math.random() * 1.5,
+                                    gravity: 0.18, radius: Math.random() * 2.5 + 1, alpha: 0.9, fadeSpeed: Math.random() * 0.025 + 0.015, shrinkSpeed: 0.94, color: bloodColors[Math.floor(Math.random() * bloodColors.length)]
+                                });
+                            }
+                        }
+                    }
+                });
+                let cratesToExplode = [];
+                for (let i = game.crates.length - 1; i >= 0; i--) {
+                    let c = game.crates[i];
+                    let dist = Math.hypot((c.x + 7) - bx, (c.y + 7) - by);
+                    if (dist < radius + 15) { cratesToExplode.push({ x: c.x + 7, y: c.y + 7 }); game.crates.splice(i, 1); }
+                }
+                
+                let minesToExplode = [];
+                if (game.mines) {
+                    for (let i = game.mines.length - 1; i >= 0; i--) {
+                        let m = game.mines[i];
+                        let dist = Math.hypot((m.x + 7) - bx, (m.y + 7) - by);
+                        if (dist < radius + 15) { minesToExplode.push({ x: m.x + 7, y: m.y + 14 }); game.mines.splice(i, 1); }
+                    }
+                }
+                
+                cratesToExplode.forEach(cPos => {
+                    executeExplosion(Math.floor(cPos.x), Math.floor(cPos.y), 35, 'crate');
+                    for(let s=0; s<6; s++) {
+                        let angle = Math.PI + (Math.random() * Math.PI); let speed = Math.random() * 4 + 2;
+                        activeShrapnels.push({ x: cPos.x, y: cPos.y - 5, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, isFire: true });
+                    }
+                });
+                minesToExplode.forEach(mPos => { executeExplosion(Math.floor(mPos.x), Math.floor(mPos.y), 45, 'mine'); });
+                socket.emit('client_explosion', { ex: bx, ey: by, er: radius, rocks: game.rocks, crates: game.crates, mines: game.mines, worms: game.worms });
+            }
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // 1. POZADÍ
+            if (bgImageLoaded && bgImage) { ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height); } 
+            else {
+                let skyGrad = ctx.createLinearGradient(0, 0, 0, HEIGHT);
+                skyGrad.addColorStop(0, '#0f2027'); skyGrad.addColorStop(0.5, '#203a43'); skyGrad.addColorStop(1, '#2c5364');
+                ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            // 2. MRAKY
+            if (game.clouds) {
+                game.clouds.forEach(c => {
+                    if (cloudSpriteLoaded && cloudSprite) {
+                        ctx.save(); ctx.globalAlpha = 0.75; let w = c.size * 3.6; let h = c.size * 2.2; ctx.drawImage(cloudSprite, c.x - w / 2, c.y - h / 2, w, h); ctx.restore();
+                    } else {
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; ctx.beginPath(); ctx.arc(c.x, c.y, c.size, 0, Math.PI * 2); ctx.arc(c.x + c.size * 0.6, c.y - c.size * 0.4, c.size * 0.8, 0, Math.PI * 2); 
+                        ctx.fill();
+                    }
+                });
+            }
+
+            // 3. ZADNÍ VODA
+            ctx.save();
+            ctx.fillStyle = '#081938'; 
+            ctx.beginPath(); ctx.moveTo(0, HEIGHT);
+            for (let x = 0; x <= WIDTH; x += 15) { ctx.lineTo(x, getBackWaterY(x)); }
+            ctx.lineTo(WIDTH, HEIGHT); ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = 'rgba(100, 150, 200, 0.4)'; ctx.lineWidth = 2; ctx.beginPath();
+            for (let x = 0; x <= WIDTH; x += 15) { if (x === 0) ctx.moveTo(x, getBackWaterY(x)); else ctx.lineTo(x, getBackWaterY(x)); }
+            ctx.stroke(); 
+            ctx.restore();
+            // 4. TERÉN
+            ctx.drawImage(terrainCanvas, 0, 0);
+            // 5. MINY, BEDNY, HROBY
+            if (game.mines) {
+                game.mines.forEach(m => {
+                    ctx.save(); ctx.translate(m.x, m.y);
+                    ctx.fillStyle = '#27ae60'; ctx.beginPath(); ctx.ellipse(7, 10, 7, 4, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#2ecc71'; ctx.beginPath(); ctx.ellipse(7, 8, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+                    
+                    let lightColor = '#7f8c8d';
+                    if (m.triggered) {
+                        let elapsed = Date.now() - m.triggerTime;
+                        if (elapsed % 1000 < 250) { lightColor = '#ff0000'; ctx.shadowBlur = 10; ctx.shadowColor = '#ff0000'; }
+                    }
+                    ctx.fillStyle = lightColor; ctx.beginPath(); ctx.arc(7, 6, 2, 0, Math.PI * 2); ctx.fill();
+                    ctx.restore();
+                });
+            }
+            
+            if (game.crates) {
+                game.crates.forEach(c => {
+                    ctx.save(); ctx.translate(c.x, c.y);
+                    let crossColor = c.type === 'health' ? '#e74c3c' : '#3498db';
+                    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 14, 14);
+                    ctx.fillStyle = crossColor; ctx.fillRect(6, 2, 2, 10); ctx.fillRect(2, 6, 10, 2);
+                    ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.strokeRect(0, 0, 14, 14);
+                    if (c.is_airdrop && !c.landed) {
+                        ctx.fillStyle = '#e67e22'; ctx.beginPath(); ctx.arc(7, -15, 12, Math.PI, 0); ctx.fill();
+                        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+                        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-3, -15); ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo(7, 0); ctx.lineTo(7, -27); ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(17, -15); ctx.stroke();
+                    }
+                    ctx.restore();
+                });
+            }
+
+            if (game.graves) {
+                game.graves.forEach(g => {
+                    ctx.save(); ctx.translate(g.x + 10, g.y + 22);
+                    ctx.fillStyle = '#7f8c8d'; ctx.beginPath(); ctx.arc(0, -12, 9, Math.PI, 0); ctx.fill(); ctx.fillRect(-9, -12, 18, 14);
+                    ctx.fillStyle = '#2c3e50'; ctx.fillRect(-2, -18, 4, 10); ctx.fillRect(-6, -15, 12, 3);
+                    ctx.fillStyle = g.team === 'team1' ? '#7ed957' : '#2d6a1e'; ctx.beginPath(); ctx.arc(0, -5, 2.5, 0, Math.PI*2); ctx.fill(); ctx.restore();
+                 });
+            }
+            
+            // 6. EFEKTY (Kouř, Beamy, Částice)
+            smokeTrails.forEach(s => { ctx.save(); ctx.globalAlpha = s.alpha; ctx.fillStyle = s.color || '#bbb'; ctx.beginPath(); ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2); ctx.fill(); ctx.restore(); });
+            railgunBeams.forEach(b => {
+                ctx.save(); let alpha = b.life / b.maxLife; ctx.shadowBlur = 15; ctx.shadowColor = '#00e5ff';
+                ctx.strokeStyle = `rgba(0, 229, 255, ${alpha * 0.55})`; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(b.x1, b.y1); ctx.lineTo(b.x2, b.y2); ctx.stroke();
+                ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.9})`; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(b.x1, b.y1); ctx.lineTo(b.x2, b.y2); ctx.stroke(); ctx.restore();
+            });
+            particles.forEach(p => { 
+                ctx.save(); ctx.globalAlpha = p.alpha; 
+                if(p.type === 'explosion_core' || p.type === 'fire') {
+                    ctx.shadowBlur = p.type === 'fire' ? 10 : 20; ctx.shadowColor = p.color; ctx.fillStyle = p.color;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill();
+                } else if (p.type === 'blood') {
+                    ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill();
+                } else {
+                    ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill(); 
+                }
+                ctx.restore(); 
+            });
+            // 7. OKURKY
+            for (let w_id in game.worms) {
+                const worm = game.worms[w_id];
+                if (worm.hp <= 0 && !(wormPhysics[w_id] && wormPhysics[w_id].isDrowning)) continue;
+
+                ctx.save(); ctx.translate(worm.x + 10, worm.y + 22);
+                if (w_id === game.active_worm_id) {
+                    ctx.fillStyle = '#ffcc00';
+                    ctx.beginPath(); let bounce = Math.sin(Date.now() / 150) * 3;
+                    ctx.moveTo(-5, -87 + bounce); ctx.lineTo(5, -87 + bounce);
+                    ctx.lineTo(0, -80 + bounce); ctx.fill();
+                }
+
+                let isRight = worm.facing === "right";
+                let dirSign = isRight ? 1 : -1;
+                let wave = (w_id === game.active_worm_id && walkAnimTime > 0) ? Math.sin(walkAnimTime) * 1.5 : 0;
+                let currentAimAngle = worm.facing === "right" ? worm.angle : Math.PI - worm.angle;
+                let lookX = Math.cos(currentAimAngle) * 1.8; let lookY = Math.sin(currentAimAngle) * 1.8;
+
+                let isTeam1 = worm.team === 'team1';
+                let bodyLight  = isTeam1 ? '#7ed957' : '#2d6a1e'; let bodyMid = isTeam1 ? '#5cbf35' : '#1e4d12';
+                let bodyDark   = isTeam1 ? '#3a9e1a' : '#0f2e08'; let shineColor = isTeam1 ? 'rgba(180,255,130,0.45)' : 'rgba(80,200,60,0.35)';
+                let wortColor  = isTeam1 ? '#4aab1a' : '#163d09'; let outlineCol = isTeam1 ? '#2a7a0a' : '#0a1f04';
+
+                ctx.rotate(wave * 0.04);
+                ctx.save(); ctx.rotate(-0.18 * dirSign); 
+                
+                let bGrad = ctx.createRadialGradient(-3 * dirSign, -15, 2, 0, -15, 18);
+                bGrad.addColorStop(0, bodyLight); bGrad.addColorStop(0.55, bodyMid);
+                bGrad.addColorStop(1, bodyDark);
+                ctx.fillStyle = bGrad; ctx.strokeStyle = outlineCol; ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.ellipse(0, -18, 9, 27, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                let shineGrad = ctx.createRadialGradient(-3 * dirSign, -24, 1, -2 * dirSign, -18, 10);
+                shineGrad.addColorStop(0, shineColor); shineGrad.addColorStop(1, 'transparent');
+                ctx.fillStyle = shineGrad;
+                ctx.beginPath(); ctx.ellipse(-2 * dirSign, -24, 4, 7, 0.3, 0, Math.PI * 2); ctx.fill();
+                
+                ctx.fillStyle = wortColor;
+                ctx.beginPath();
+                ctx.arc(-3, -27, 1.5, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(3, -21, 1.2, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath();
+                ctx.arc(-4, -10, 1.3, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(3, -4, 1.1, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath();
+                ctx.arc(-2, 3, 1.0, 0, Math.PI * 2); ctx.fill();
+
+                ctx.fillStyle = bodyDark;
+                ctx.beginPath();
+                ctx.ellipse(0, -42, 3.5, 3, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#1a5c08'; ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(0 * dirSign, -44); ctx.quadraticCurveTo(3 * dirSign, -47, 2 * dirSign, -49); ctx.stroke();
+                
+                let helmColor = isTeam1 ? '#5DADE2' : '#8B4513'; let helmBrim  = isTeam1 ? '#2E86C1' : '#5C2E0B';
+                ctx.fillStyle = helmBrim; ctx.beginPath();
+                ctx.ellipse(1 * dirSign, -39, 10.5, 2, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = helmColor; ctx.beginPath();
+                ctx.arc(0, -39, 8.5, Math.PI, 0); ctx.fill();
+                ctx.fillStyle = helmBrim; ctx.beginPath(); ctx.ellipse(0, -47, 3, 1.5, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+                
+                let faceX = 1 * dirSign; let faceY = -32; 
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(faceX + 2.5 * dirSign, faceY - 1, 3.2, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath();
+                ctx.arc(faceX - 1.5 * dirSign, faceY - 1, 3.2, 0, Math.PI * 2); ctx.fill();
+
+                ctx.fillStyle = '#111';
+                ctx.beginPath();
+                ctx.arc(faceX + 2.5 * dirSign + lookX * 0.7, faceY - 1 + lookY * 0.7, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath(); ctx.arc(faceX - 1.5 * dirSign + lookX * 0.7, faceY - 1 + lookY * 0.7, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = '#333'; ctx.lineWidth = 1.2;
+                ctx.beginPath(); ctx.moveTo(faceX + 0.5 * dirSign, faceY - 4.5);
+                ctx.quadraticCurveTo(faceX + 2.5 * dirSign, faceY - 5.8, faceX + 4.5 * dirSign, faceY - 4.5); ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(faceX - 3.5 * dirSign, faceY - 4.5); ctx.quadraticCurveTo(faceX - 1.5 * dirSign, faceY - 5.8, faceX + 0.2 * dirSign, faceY - 4.5);
+                ctx.stroke();
+
+                let aimNorm = Math.max(-1, Math.min(1, worm.angle / 1.65)); let mouthOpen = Math.max(0, -aimNorm); 
+                ctx.fillStyle = '#c0392b';
+                let mouthW = 4; let mouthH = 2.5 + mouthOpen * 3.5;
+                if (mouthOpen < 0.15) {
+                    ctx.beginPath();
+                    ctx.ellipse(faceX + 0.5 * dirSign, faceY + 4, mouthW, mouthH, 0, 0, Math.PI); ctx.fill();
+                    ctx.fillStyle = '#e74c3c'; ctx.beginPath();
+                    ctx.ellipse(faceX + 0.5 * dirSign, faceY + 5.5, 2, 1.2, 0, 0, Math.PI); ctx.fill();
+                    ctx.fillStyle = '#ecf0f1';
+                    for (let t = -2; t <= 2; t++) { ctx.beginPath();
+                    ctx.rect(faceX + 0.5 * dirSign + t * 1.5 - 0.6, faceY + 3.2, 1.2, 1.8); ctx.fill();
+                    }
+                } else {
+                    ctx.beginPath();
+                    ctx.ellipse(faceX + 0.5 * dirSign, faceY + 4, mouthW, mouthH, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#e74c3c'; ctx.beginPath();
+                    ctx.ellipse(faceX + 0.5 * dirSign, faceY + 5 + mouthOpen * 2, 2, 1.5 + mouthOpen, 0, 0, Math.PI); ctx.fill();
+                    ctx.fillStyle = '#ecf0f1';
+                    for (let t = -2; t <= 2; t++) { ctx.beginPath();
+                    ctx.rect(faceX + 0.5 * dirSign + t * 1.5 - 0.6, faceY + 3.2 - mouthOpen * 1.5, 1.2, 1.8);
+                    ctx.fill(); }
+                    for (let t = -1; t <= 1; t++) { ctx.beginPath();
+                    ctx.rect(faceX + 0.5 * dirSign + t * 1.5 - 0.6, faceY + 4.5 + mouthOpen * 1.5, 1.2, 1.5);
+                    ctx.fill(); }
+                }
+
+                ctx.restore();
+                let healF = worm.healFlash || 0;
+                if (worm.hp > 0) {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = (healF > 0) ? 'bold 13px sans-serif' : 'bold 11px sans-serif'; 
+                    ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
+                    ctx.textAlign = "center";
+                    ctx.fillText(worm.name, worm.x + 10, worm.y - 50);
+                    
+                    ctx.fillStyle = worm.team === 'team1' ? '#b8ff80' : '#80ff50';
+                    ctx.fillText(worm.hp + " HP", worm.x + 10, worm.y - 38);
+                    
+                    ctx.textAlign = "left"; ctx.shadowBlur = 0;
+                    if (healF > 0) worm.healFlash--;
+                }
+
+                let handX = worm.x + 10 + (isRight ? 4 : -4);
+                let handY = worm.y + 6 + wave * 1.1;
+                if (w_id === game.active_worm_id && worm.hp > 0) {
+                    ctx.save();
+                    ctx.translate(handX, handY); ctx.rotate(currentAimAngle);
+                    if (!isRight) ctx.scale(1, -1);
+                    
+                    if (selectedWeapon === "bazooka") {
+                        let bazGrad = ctx.createLinearGradient(0, -4, 0, 4);
+                        bazGrad.addColorStop(0, '#4b5320'); bazGrad.addColorStop(1, '#2c3013');
+                        ctx.fillStyle = bazGrad; ctx.fillRect(-8, -5, 30, 10); ctx.fillStyle = "#111"; ctx.fillRect(22, -6, 4, 12);
+                        ctx.fillStyle = "#222"; ctx.fillRect(-2, -8, 6, 4); 
+                    } else if (selectedWeapon === "grenade") {
+                        let grGrad = ctx.createRadialGradient(8, -1, 1, 8, 0, 5);
+                        grGrad.addColorStop(0, '#556b2f'); grGrad.addColorStop(1, '#2e4d34'); ctx.fillStyle = grGrad;
+                        ctx.beginPath(); ctx.ellipse(8, 0, 5, 6, 0, 0, Math.PI * 2); ctx.fill();
+                        ctx.fillStyle = "#aaa"; ctx.fillRect(6, -8, 4, 3);
+                    } else if (selectedWeapon === "frag") {
+                        let frGrad = ctx.createRadialGradient(8, -1, 1, 8, 0, 5);
+                        frGrad.addColorStop(0, '#9b59b6'); frGrad.addColorStop(1, '#5b2c6f'); ctx.fillStyle = frGrad;
+                        ctx.beginPath(); ctx.ellipse(8, 0, 5, 6, 0, 0, Math.PI * 2); ctx.fill();
+                        ctx.fillStyle = "#ecf0f1"; ctx.fillRect(6, -8, 4, 3);
+                    } else if (selectedWeapon === "molotov") {
+                        ctx.fillStyle = "rgba(46, 204, 113, 0.7)";
+                        ctx.beginPath(); ctx.ellipse(8, 2, 4, 8, Math.PI/2, 0, Math.PI*2); ctx.fill();
+                        ctx.fillStyle = "rgba(39, 174, 96, 0.9)"; ctx.fillRect(14, -1, 6, 4);
+                        ctx.fillStyle = "#e74c3c"; ctx.fillRect(20, -1, 4, 3);
+                    } else if (selectedWeapon === "uzi") {
+                        ctx.fillStyle = "#2c3e50";
+                        ctx.fillRect(-4, -3, 18, 6); ctx.fillStyle = "#1a252f"; ctx.fillRect(2, 3, 4, 10); ctx.fillStyle = "#111"; ctx.fillRect(14, -2, 8, 3);
+                        ctx.fillStyle = "#34495e"; ctx.fillRect(-4, 3, 3, 6);   
+                    } else if (selectedWeapon === "shotgun") {
+                        ctx.fillStyle = "#5d4037";
+                        ctx.fillRect(-8, -2, 10, 5); ctx.fillStyle = "#7f8c8d"; ctx.fillRect(2, -3, 20, 3); ctx.fillStyle = "#606a6b"; ctx.fillRect(2, 0, 20, 3);
+                        ctx.fillStyle = "#3e2723"; ctx.fillRect(4, 3, 8, 3);    
+                    } else if (selectedWeapon === "lupara") {
+                        ctx.fillStyle = "#8b5a2b";
+                        ctx.fillRect(-7, -2, 9, 4); ctx.fillStyle = "#444444"; ctx.fillRect(2, -3, 11, 3); ctx.fillStyle = "#333333"; ctx.fillRect(2, 0, 11, 3);
+                    } else if (selectedWeapon === "plasma") {
+                        ctx.fillStyle = "#bdc3c7";
+                        ctx.fillRect(-4, -4, 16, 8); ctx.fillStyle = "#00e5ff"; ctx.fillRect(2, -2, 6, 4); ctx.fillStyle = "#7f8c8d"; ctx.fillRect(12, -3, 6, 6);
+                        ctx.fillStyle = "#34495e"; ctx.fillRect(-4, 4, 4, 5); 
+                    } else if (selectedWeapon === "m79") {
+                        ctx.fillStyle = "#5c4033";
+                        ctx.fillRect(-4, -2, 10, 5); ctx.fillStyle = "#34495e"; ctx.fillRect(6, -3, 15, 4); ctx.fillStyle = "#111111"; ctx.fillRect(2, 2, 3, 3);
+                    } else if (selectedWeapon === "railgun") {
+                        ctx.fillStyle = "#3a3a3a";
+                        ctx.fillRect(-6, -5, 23, 9); ctx.fillStyle = "#00e5ff"; ctx.fillRect(2, -2, 14, 3); ctx.fillStyle = "#ff00ff"; ctx.fillRect(17, -4, 2, 7);
+                    }
+                    ctx.restore();
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)'; ctx.lineWidth = 1.5;
+                    let crossX = worm.x + 10 + Math.cos(currentAimAngle)*45;
+                    let crossY = worm.y + 10 + Math.sin(currentAimAngle)*45;
+                    ctx.beginPath(); ctx.arc(crossX, crossY, 5, 0, Math.PI*2); ctx.stroke();
+                    ctx.fillStyle = 'rgba(255, 0, 0, 0.8)'; ctx.beginPath(); ctx.arc(crossX, crossY, 1.5, 0, Math.PI*2); ctx.fill();
+                }
+            }
+            
+            // 8. RYBY (Před přední vodou, ale po terénu)
+            fishes.forEach(f => {
+                let wy = getWaterY(f.x); let fy = wy + f.yOffset;
+                if (fy < HEIGHT) {
+                    ctx.save(); ctx.translate(f.x, fy); ctx.scale(f.dir, 1);
+                    if (fishSpriteLoaded && fishSprite) { ctx.drawImage(fishSprite, -10*f.size, -5*f.size, 20*f.size, 10*f.size); } 
+                    else {
+                        ctx.fillStyle = '#e67e22'; ctx.beginPath(); ctx.ellipse(0, 0, 8*f.size, 4*f.size, 0, 0, Math.PI*2); ctx.fill();
+                        ctx.beginPath(); ctx.moveTo(-6*f.size, 0); ctx.lineTo(-12*f.size, -4*f.size); ctx.lineTo(-12*f.size, 4*f.size); ctx.fill();
+                        ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(4*f.size, -1*f.size, 1*f.size, 0, Math.PI*2); ctx.fill();
+                    }
+                    ctx.restore();
+                }
+            });
+            // 9. POTÁPĚJÍCÍ SE OBJEKTY
+            sinkingObjects.forEach(obj => {
+                ctx.save(); ctx.translate(obj.x, obj.y); 
+                if (obj.type === 'bazooka') {
+                    ctx.rotate(Math.atan2(obj.vy, obj.vx)); ctx.fillStyle = "#e74c3c"; ctx.fillRect(-8, -3, 12, 6); ctx.fillStyle = "#c0392b"; ctx.beginPath(); ctx.moveTo(4, -3); 
+                    ctx.lineTo(10, 0); ctx.lineTo(4, 3); ctx.fill(); ctx.fillStyle = "#bdc3c7"; ctx.beginPath(); ctx.moveTo(-8, -3); ctx.lineTo(-12, -6); ctx.lineTo(-8, 0); ctx.fill(); ctx.beginPath(); ctx.moveTo(-8, 3); ctx.lineTo(-12, 6); ctx.lineTo(-8, 0); ctx.fill();
+                } else if (obj.type === 'm79') {
+                    ctx.rotate(Math.atan2(obj.vy, obj.vx)); ctx.fillStyle = "#f1c40f"; ctx.fillRect(-3, -2, 6, 4); ctx.fillStyle = "#d35400"; ctx.fillRect(3, -2, 2, 4);  
+                } else if (obj.type === 'molotov') {
+                    ctx.rotate(Math.atan2(obj.vy, obj.vx)); ctx.fillStyle = "rgba(46, 204, 113, 0.8)";
+                    ctx.beginPath(); ctx.ellipse(0, 0, 6, 3, 0, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = "#e74c3c"; ctx.fillRect(6, -1, 3, 2);
+                } else if (obj.type === 'shrapnel') {
+                    ctx.fillStyle = '#8e44ad';
+                    ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill(); 
+                } else if (obj.type === 'crate' || obj.type === 'airdrop') {
+                    let crossColor = obj.cType === 'health' ? '#e74c3c' : '#3498db';
+                    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 14, 14);
+                    ctx.fillStyle = crossColor; ctx.fillRect(6, 2, 2, 10);
+                    ctx.fillRect(2, 6, 10, 2);
+                    ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.strokeRect(0, 0, 14, 14);
+                    if (obj.parachute) {
+                        ctx.fillStyle = '#e67e22';
+                        ctx.beginPath(); ctx.arc(7, -15, 12, Math.PI, 0); ctx.fill();
+                        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-3, -15); ctx.stroke();
+                        ctx.beginPath();
+                        ctx.moveTo(7, 0); ctx.lineTo(7, -27); ctx.stroke(); ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(17, -15); ctx.stroke();
+                    }
+                } else if (obj.type === 'mine') {
+                    ctx.fillStyle = '#27ae60';
+                    ctx.beginPath(); ctx.ellipse(7, 10, 7, 4, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#2ecc71'; ctx.beginPath();
+                    ctx.ellipse(7, 8, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+                } else if (obj.type === 'grave') {
+                    ctx.translate(10, 22);
+                    ctx.fillStyle = '#7f8c8d'; ctx.beginPath(); ctx.arc(0, -12, 9, Math.PI, 0); ctx.fill(); ctx.fillRect(-9, -12, 18, 14);
+                    ctx.fillStyle = '#2c3e50';
+                    ctx.fillRect(-2, -18, 4, 10); ctx.fillRect(-6, -15, 12, 3); ctx.fillStyle = obj.team === 'team1' ? '#7ed957' : '#2d6a1e'; ctx.beginPath();
+                    ctx.arc(0, -5, 2.5, 0, Math.PI*2); ctx.fill();
+                } else {
+                    ctx.rotate(obj.x * 0.1);
+                    ctx.fillStyle = obj.type === 'frag' ? '#8e44ad' : '#2e4d34'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#222'; ctx.fillRect(2, -4, 2, 3);
+                }
+                ctx.restore();
+            });
+
+            // 10. PŘEDNÍ VODA (Poloprůhledná přes terén a padající objekty)
+            ctx.save();
+            ctx.globalAlpha = 0.65; 
+            ctx.fillStyle = '#0f2557'; 
+            ctx.beginPath(); ctx.moveTo(0, HEIGHT);
+            for (let x = 0; x <= WIDTH; x += 15) { ctx.lineTo(x, getWaterY(x));
+            }
+            ctx.lineTo(WIDTH, HEIGHT); ctx.closePath(); ctx.fill();
+            
+            ctx.globalAlpha = 0.85;
+            ctx.strokeStyle = 'rgba(200, 230, 255, 0.5)'; ctx.lineWidth = 2; ctx.beginPath();
+            for (let x = 0; x <= WIDTH; x += 15) { if (x === 0) ctx.moveTo(x, getWaterY(x));
+            else ctx.lineTo(x, getWaterY(x)); }
+            ctx.stroke(); 
+            ctx.restore();
+            // 11. ZÁBLESKY A PROJEKTILY VE VZDUCHU (Nad vodou)
+            if (muzzleFlash) {
+                ctx.save();
+                ctx.translate(muzzleFlash.x, muzzleFlash.y); ctx.rotate(muzzleFlash.angle);
+                let scale = muzzleFlash.type === 'large' ? 1.5 : (muzzleFlash.type === 'wide' ? 1.2 : 0.8);
+                ctx.scale(scale, scale * (muzzleFlash.type === 'wide' ? 1.5 : 1));
+                let r = 255, g = 200, b = 0;
+                if (muzzleFlash.color === '#00e5ff') { r = 0; g = 229; b = 255;
+                }
+                ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${muzzleFlash.duration / 10})`;
+                ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(15, -5); ctx.lineTo(25, 0); ctx.lineTo(15, 5); ctx.closePath(); ctx.fill();
+                ctx.fillStyle = "rgba(255, 255, 255, " + (muzzleFlash.duration / 10) + ")"; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(10, -2); ctx.lineTo(18, 0);
+                ctx.lineTo(10, 2); ctx.closePath(); ctx.fill(); ctx.restore();
+            }
+
+            if (localBullet && !localBullet.inWater) {
+                ctx.save();
+                ctx.translate(localBullet.x, localBullet.y); ctx.rotate(Math.atan2(localBullet.vy, localBullet.vx));
+                if (localBullet.type === 'bazooka') {
+                    ctx.fillStyle = "#e74c3c";
+                    ctx.fillRect(-8, -3, 12, 6);  ctx.fillStyle = "#c0392b"; ctx.beginPath(); ctx.moveTo(4, -3); ctx.lineTo(10, 0); ctx.lineTo(4, 3); ctx.fill();
+                    ctx.fillStyle = "#bdc3c7"; ctx.beginPath();
+                    ctx.moveTo(-8, -3); ctx.lineTo(-12, -6); ctx.lineTo(-8, 0); ctx.fill(); ctx.beginPath(); ctx.moveTo(-8, 3); ctx.lineTo(-12, 6); ctx.lineTo(-8, 0); ctx.fill();
+                } else if (localBullet.type === 'm79') {
+                    ctx.fillStyle = "#f1c40f";
+                    ctx.fillRect(-3, -2, 6, 4); ctx.fillStyle = "#d35400"; ctx.fillRect(3, -2, 2, 4);
+                } else if (localBullet.type === 'shotgun') {
+                    ctx.fillStyle = '#f1c40f';
+                    ctx.fillRect(-4, -1, 8, 2);
+                } else if (localBullet.type === 'molotov') {
+                    ctx.fillStyle = "rgba(46, 204, 113, 0.8)";
+                    ctx.beginPath(); ctx.ellipse(0, 0, 6, 3, 0, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = "#e74c3c"; ctx.fillRect(6, -1, 3, 2);
+                } else {
+                    ctx.rotate(localBullet.x * 0.1);
+                    ctx.fillStyle = (localBullet.timerStarted && localBullet.flashState) ? '#e74c3c' : (localBullet.type === 'frag' ? '#8e44ad' : '#2e4d34');
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#222'; ctx.fillRect(2, -4, 2, 3);
+                }
+                ctx.restore();
+            }
+
+            activeLuparaPellets.forEach(p => { if(!p.inWater) { ctx.save(); ctx.translate(p.x, p.y); ctx.fillStyle = '#f1c40f'; ctx.beginPath(); ctx.arc(0, 0, 1.5, 0, Math.PI * 2); ctx.fill(); ctx.restore(); } });
+            ctx.shadowBlur = 5; ctx.shadowColor = '#ffcc00';
+            activeUziBullets.forEach(b => { if(!b.inWater) { ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(Math.atan2(b.vy, b.vx)); ctx.fillStyle = '#fff'; ctx.fillRect(-6, -1, 12, 2); ctx.restore(); } });
+            ctx.shadowBlur = 0;
+            
+            activePlasmaBullets.forEach(b => { ctx.save(); ctx.translate(b.x, b.y); ctx.shadowBlur = 8; ctx.shadowColor = '#00e5ff'; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill(); ctx.restore(); });
+            activeShrapnels.forEach(s => { ctx.save(); ctx.translate(s.x, s.y); ctx.fillStyle = '#8e44ad'; ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill(); ctx.restore(); });
+        }
+
+        function setupBtn(id, key) {
+            const btn = document.getElementById(id);
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); keysPressed[key] = true; });
+            btn.addEventListener('touchend', () => { keysPressed[key] = false; });
+        }
+        setupBtn('btnLeft', 'left'); setupBtn('btnRight', 'right'); setupBtn('btnUp', 'up'); setupBtn('btnDown', 'down');
+        document.getElementById('btnSwitchWorm').addEventListener('click', () => {
+            let isMyTurn = (localTeam === 'both' || localTeam === game.active_team);
+            if (game.game_over || localBullet || isAutofiring || lockWeapons || turnWormLocked || !isMyTurn) return; 
+            socket.emit('switch_worm');
+        });
+        document.getElementById('btnJump').addEventListener('touchstart', (e) => {
+            e.preventDefault(); 
+            let isMyTurn = (localTeam === 'both' || localTeam === game.active_team);
+            if (game.game_over || !isMyTurn) return;
+            let w_id = game.active_worm_id; let phys = wormPhysics[w_id];
+            if (phys && phys.isGrounded) {
+            
+                playSound('jump'); phys.isGrounded = false;
+                phys.vx = game.worms[w_id].facing === "right" ? 2.0 : -2.0; phys.vy = -4.8; 
+                turnWormLocked = true; 
+            }
+        });
+        const bBaz = document.getElementById('wpnBazooka'); const bGre = document.getElementById('wpnGrenade'); 
+        const bFrag = document.getElementById('wpnFrag'); const bMol = document.getElementById('wpnMolotov');
+        const bUzi = document.getElementById('wpnUzi');
+        const bSho = document.getElementById('wpnShotgun');
+        const bLup = document.getElementById('wpnLupara'); const bPla = document.getElementById('wpnPlasma'); 
+        const bM79 = document.getElementById('wpnM79'); const bRai = document.getElementById('wpnRailgun');
+        function updateWeaponButtonsUI() {
+            let teamAmmo = game[game.active_team + "_ammo"] || {};
+            function setBtn(btn, wpn, isInf) {
+                if (!btn) return;
+                if (selectedWeapon === wpn) {
+                    btn.classList.add('weapon-selected');
+                } else {
+                    btn.classList.remove('weapon-selected');
+                }
+                
+                let badge = btn.querySelector('.badge');
+                if (isInf) {
+                    badge.innerText = '∞';
+                    badge.style.color = '#fff';
+                    btn.style.filter = 'none';
+                } else {
+                    let count = teamAmmo[wpn] || 0;
+                    badge.innerText = count;
+                    
+                    if (count <= 2) {
+                        badge.style.color = '#ff3333';
+                    } else {
+                        badge.style.color = '#fff';
+                    }
+                    
+                    if (count <= 0) {
+                        btn.style.filter = 'brightness(0.3) grayscale(1)';
+                        if (selectedWeapon === wpn) {
+                            selectedWeapon = 'bazooka';
+                            if (game.active_team) teamWeapons[game.active_team] = 'bazooka';
+                            setTimeout(updateWeaponButtonsUI, 0); 
+                        }
+                    } else {
+                        btn.style.filter = 'none';
+                    }
+                }
+            }
+            setBtn(bBaz, 'bazooka', true);
+            setBtn(bGre, 'grenade', true); setBtn(bFrag, 'frag', false); setBtn(bMol, 'molotov', false);
+            setBtn(bUzi, 'uzi', false); setBtn(bSho, 'shotgun', false); setBtn(bLup, 'lupara', false);
+            setBtn(bPla, 'plasma', false);
+            setBtn(bM79, 'm79', false); setBtn(bRai, 'railgun', false);
+        }
+        
+        function trySelectWeapon(wpn) { 
+            let isMyTurn = (localTeam === 'both' || localTeam === game.active_team);
+            if(lockWeapons || !isMyTurn) return;
+            selectedWeapon = wpn; 
+            if (game.active_team) teamWeapons[game.active_team] = wpn;
+            updateWeaponButtonsUI();
+        }
+        
+        bBaz.addEventListener('touchstart', (e) => { e.preventDefault(); trySelectWeapon("bazooka"); });
+        bGre.addEventListener('touchstart', (e) => { e.preventDefault(); trySelectWeapon("grenade"); });
+        bFrag.addEventListener('touchstart', (e) => { e.preventDefault(); trySelectWeapon("frag"); });
+        bMol.addEventListener('touchstart', (e) => { e.preventDefault(); trySelectWeapon("molotov"); });
+        bUzi.addEventListener('touchstart', (e) => { e.preventDefault(); trySelectWeapon("uzi"); });
+        bSho.addEventListener('touchstart', (e) => { e.preventDefault(); trySelectWeapon("shotgun"); });
+        bLup.addEventListener('touchstart', (e) => { e.preventDefault(); trySelectWeapon("lupara"); });
+        bPla.addEventListener('touchstart', (e) => { e.preventDefault(); trySelectWeapon("plasma"); });
+        bM79.addEventListener('touchstart', (e) => { e.preventDefault(); trySelectWeapon("m79"); });
+        bRai.addEventListener('touchstart', (e) => { e.preventDefault(); trySelectWeapon("railgun"); });
+
+        const btnShoot = document.getElementById('btnShoot'); const pCont = document.getElementById('pContainer'); const pBar = document.getElementById('pBar');
+        btnShoot.addEventListener('touchstart', (e) => {
+            e.preventDefault(); 
+            let isMyTurn = (localTeam === 'both' || localTeam === game.active_team);
+            if (game.game_over || !isMyTurn) return;
+            
+            let teamAmmo = game[game.active_team + "_ammo"] || {};
+            if (!['bazooka', 'grenade'].includes(selectedWeapon) && (teamAmmo[selectedWeapon] || 0) <= 0) return;
+
+            let waitingForSecondShot = (selectedWeapon === 'shotgun' && shotgunShotsLeft === 1) || (selectedWeapon === 'lupara' && luparaShotsLeft === 1);
+ 
+            if (turnHasAttacked && !waitingForSecondShot) return;
+            
+            if (!waitingForSecondShot) { if (localBullet || activeUziBullets.length > 0 || activePlasmaBullets.length > 0 || activeShrapnels.length > 0 || activeLuparaPellets.length > 0 || railgunBeams.length > 0 || activeFires.length > 0 || isAutofiring || autofireInterval) return; } 
+            else { if (localBullet || activeLuparaPellets.length > 0) return;
+            }
+             
+            if (selectedWeapon === 'shotgun' && shotgunShotsLeft <= 0) return;
+            if (selectedWeapon === 'lupara' && luparaShotsLeft <= 0) return;
+            if (selectedWeapon === 'uzi') { turnHasAttacked = true; updateSkipButtonState(); runUziAutofire(); return; }
+            if (selectedWeapon === 'plasma') { turnHasAttacked = true; updateSkipButtonState(); runPlasmaAutofire(); return; }
+            if (selectedWeapon === 'shotgun') { turnHasAttacked = true; updateSkipButtonState(); fireShotgunDirectly(); return; }
+            if (selectedWeapon === 'lupara') { turnHasAttacked = true; updateSkipButtonState(); fireLuparaSalvo(); return; }
+            if (selectedWeapon === 'm79') { turnHasAttacked = true; updateSkipButtonState(); fireM79Directly(); return; }
+            if (selectedWeapon === 'railgun') { turnHasAttacked = true; updateSkipButtonState(); fireRailgunBeam(); return; }
+
+            currentPower = 0;
+            pCont.style.display = 'block'; startChargeSound();
+            powerInterval = setInterval(() => { currentPower += 3.5; if (currentPower > 100) currentPower = 100; pBar.style.width = currentPower + '%'; updateChargeSound(currentPower); }, 20);
+        });
+        
+        btnShoot.addEventListener('touchend', () => {
+            let isMyTurn = (localTeam === 'both' || localTeam === game.active_team);
+            if (selectedWeapon === 'uzi' || selectedWeapon === 'plasma' || selectedWeapon === 'shotgun' || selectedWeapon === 'lupara' || selectedWeapon === 'm79' || selectedWeapon === 'railgun' || !isMyTurn) return;
+            if (!powerInterval) return; clearInterval(powerInterval); powerInterval = null; stopChargeSound();
+            
+            let teamAmmo = game[game.active_team + "_ammo"] || {};
+            if (!['bazooka', 'grenade'].includes(selectedWeapon) && (teamAmmo[selectedWeapon] || 0) <= 0) {
+                pCont.style.display = 'none'; return;
+            }
+
+            turnHasAttacked = true; updateSkipButtonState(); triggerVibrate(50); 
+            const activeWorm = game.worms[game.active_worm_id];
+   
+            const maxV = selectedWeapon === 'bazooka' ? 14 : 11; const finalV = (currentPower / 100) * maxV;
+            let shootAngle = activeWorm.facing === "right" ? activeWorm.angle : Math.PI - activeWorm.angle;
+            let barrelOffset = 36;
+            if (selectedWeapon === 'bazooka') barrelOffset = 45;
+            if (selectedWeapon === 'molotov') barrelOffset = 38;
+            let safeMuzzle = getSafeMuzzlePosition(activeWorm.x + 10, activeWorm.y + 6, shootAngle, barrelOffset);
+            applyRecoil(shootAngle, selectedWeapon);
+            localPendingBullets++;
+            socket.emit('client_shoot', { type: selectedWeapon, x: safeMuzzle.x, y: safeMuzzle.y, vx: Math.cos(shootAngle) * finalV, vy: Math.sin(shootAngle) * finalV, angle: shootAngle });
+            setTimeout(() => { pCont.style.display = 'none'; }, 200);
+        });
+        
+        function fireShotgunDirectly() {
+            shotgunShotsLeft--;
+            updateWeaponButtonsUI(); triggerVibrate(50); const activeWorm = game.worms[game.active_worm_id];
+            let shootAngle = activeWorm.facing === "right" ? activeWorm.angle : Math.PI - activeWorm.angle;
+            let safeMuzzle = getSafeMuzzlePosition(activeWorm.x + 10, activeWorm.y + 6, shootAngle, 38);
+            let shotgunVelocity = 16; applyRecoil(shootAngle, 'shotgun'); localPendingBullets++;
+            socket.emit('client_shoot', { type: 'shotgun', x: safeMuzzle.x, y: safeMuzzle.y, vx: Math.cos(shootAngle) * shotgunVelocity, vy: Math.sin(shootAngle) * shotgunVelocity, angle: shootAngle });
+        }
+
+        function fireLuparaSalvo() {
+            luparaShotsLeft--;
+            updateWeaponButtonsUI(); triggerVibrate(50); const activeWorm = game.worms[game.active_worm_id];
+            let shootAngle = activeWorm.facing === "right" ? activeWorm.angle : Math.PI - activeWorm.angle;
+            let safeMuzzle = getSafeMuzzlePosition(activeWorm.x + 10, activeWorm.y + 6, shootAngle, 36);
+            applyRecoil(shootAngle, 'lupara');
+            for (let i = 0; i < 6; i++) {
+                let spread = (Math.random() - 0.5) * 0.28;
+                let finalAngle = shootAngle + spread; let pelletSpeed = 13.5 + Math.random() * 3.5; localPendingBullets++;
+                socket.emit('client_shoot', { type: 'lupara', x: safeMuzzle.x, y: safeMuzzle.y, vx: Math.cos(finalAngle) * pelletSpeed, vy: Math.sin(finalAngle) * pelletSpeed, angle: finalAngle, consume_ammo: (i === 0) });
+            }
+        }
+
+        function fireRailgunBeam() {
+            const activeWorm = game.worms[game.active_worm_id];
+            triggerVibrate(50);
+            let shootAngle = activeWorm.facing === "right" ? activeWorm.angle : Math.PI - activeWorm.angle;
+            let safeMuzzle = getSafeMuzzlePosition(activeWorm.x + 10, activeWorm.y + 6, shootAngle, 42);
+            applyRecoil(shootAngle, 'railgun'); localPendingBullets++;
+            socket.emit('client_shoot', { type: 'railgun', x: safeMuzzle.x, y: safeMuzzle.y, vx: Math.cos(shootAngle) * 25, vy: Math.sin(shootAngle) * 25, angle: shootAngle });
+        }
+
+        function fireM79Directly() {
+            const activeWorm = game.worms[game.active_worm_id];
+            triggerVibrate(50);
+            let shootAngle = activeWorm.facing === "right" ? activeWorm.angle : Math.PI - activeWorm.angle;
+            let safeMuzzle = getSafeMuzzlePosition(activeWorm.x + 10, activeWorm.y + 6, shootAngle, 38);
+            let m79Velocity = 11.5; applyRecoil(shootAngle, 'm79'); localPendingBullets++;
+            socket.emit('client_shoot', { type: 'm79', x: safeMuzzle.x, y: safeMuzzle.y, vx: Math.cos(shootAngle) * m79Velocity, vy: Math.sin(shootAngle) * m79Velocity, angle: shootAngle });
+        }
+
+        function runUziAutofire() {
+            if (isAutofiring || autofireInterval) return;
+            isAutofiring = true;
+            let shotsLeft = 30; triggerVibrate(150);
+            let shooterWormId = game.active_worm_id;
+            autofireInterval = setInterval(() => {
+                if (game.game_over || game.active_worm_id !== shooterWormId) { 
+                    clearInterval(autofireInterval); autofireInterval = null; isAutofiring = false; return; 
+                }
+                const activeWorm = game.worms[game.active_worm_id];
+          
+                if (!activeWorm || activeWorm.hp <= 0) { 
+                    clearInterval(autofireInterval); autofireInterval = null; isAutofiring = false; checkTurnEndAfterSpecial(); return; 
+                }
+                let currentShootAngle = activeWorm.facing === "right" ? activeWorm.angle : Math.PI - activeWorm.angle;
+               
+                let safeMuzzle = getSafeMuzzlePosition(activeWorm.x + 10, activeWorm.y + 6, currentShootAngle, 34);
+                let uziSpeed = 15; let spread = (Math.random() - 0.5) * 0.08; let finalAngle = currentShootAngle + spread;
+                applyRecoil(currentShootAngle, 'uzi'); localPendingBullets++;
+                socket.emit('client_shoot', { type: 'uzi', x: safeMuzzle.x, y: safeMuzzle.y, vx: Math.cos(finalAngle) * uziSpeed, vy: Math.sin(finalAngle) * uziSpeed, angle: finalAngle });
+                shotsLeft--; 
+                if (shotsLeft <= 0) { 
+                    clearInterval(autofireInterval);
+                    autofireInterval = null; isAutofiring = false; checkTurnEndAfterSpecial(); 
+                }
+            }, 65);
+        }
+
+        function runPlasmaAutofire() {
+            if (isAutofiring || autofireInterval) return;
+            isAutofiring = true;
+            let shotsLeft = 30; triggerVibrate(150);
+            let shooterWormId = game.active_worm_id;
+            autofireInterval = setInterval(() => {
+                if (game.game_over || game.active_worm_id !== shooterWormId) { 
+                    clearInterval(autofireInterval); autofireInterval = null; isAutofiring = false; return; 
+                }
+                const activeWorm = game.worms[game.active_worm_id];
+          
+                if (!activeWorm || activeWorm.hp <= 0) { 
+                    clearInterval(autofireInterval); autofireInterval = null; isAutofiring = false; checkTurnEndAfterSpecial(); return; 
+                }
+                let currentShootAngle = activeWorm.facing === "right" ? activeWorm.angle : Math.PI - activeWorm.angle;
+               
+                let safeMuzzle = getSafeMuzzlePosition(activeWorm.x + 10, activeWorm.y + 6, currentShootAngle, 34);
+                let plasmaSpeed = 10; let spread = (Math.random() - 0.5) * 0.05; let finalAngle = currentShootAngle + spread;
+                applyRecoil(currentShootAngle, 'plasma'); localPendingBullets++;
+                socket.emit('client_shoot', { type: 'plasma', x: safeMuzzle.x, y: safeMuzzle.y, vx: Math.cos(finalAngle) * plasmaSpeed, vy: Math.sin(finalAngle) * plasmaSpeed, angle: finalAngle });
+                shotsLeft--; 
+                if (shotsLeft <= 0) { 
+                    clearInterval(autofireInterval);
+                    autofireInterval = null; isAutofiring = false; checkTurnEndAfterSpecial(); 
+                }
+            }, 75);
+        }
+
+        document.getElementById('btnRestart').addEventListener('click', () => { socket.emit('restart_game'); });
+        document.body.addEventListener('touchmove', (e) => {
+            if (e.target.tagName && e.target.tagName.toLowerCase() === 'input' && e.target.type === 'range') return;
+            const overlay = e.target.closest('.menu-overlay');
+            if (overlay && overlay.scrollHeight > overlay.clientHeight) return;
+            e.preventDefault();
+        }, { passive: false });
+        const NO_CLICK_SOUND_IDS = new Set(['btnLeft', 'btnRight', 'btnUp', 'btnDown', 'btnShoot', 'btnJump']);
+        let lastClickSoundTouch = false;
+        document.addEventListener('touchstart', (e) => {
+            const btn = e.target.closest('button'); if (!btn) return; if (NO_CLICK_SOUND_IDS.has(btn.id)) return;
+            lastClickSoundTouch = true; playSound('click');
+        }, { passive: true });
+        document.addEventListener('click', (e) => {
+            if (lastClickSoundTouch) { lastClickSoundTouch = false; return; }
+            const btn = e.target.closest('button'); if (!btn) return; if (NO_CLICK_SOUND_IDS.has(btn.id)) return;
+            playSound('click');
+        });
+        document.getElementById('btnBackToMenu').addEventListener('click', () => {
+            stopMusic(); document.getElementById('gameOverScreen').style.display = 'none'; document.getElementById('gameUI').style.display = 'none';
+            document.querySelectorAll('.menu-overlay').forEach(el => el.style.display = 'none'); document.getElementById('mainMenu').style.display = 'flex'; startMenuMusic();
+        });
+    </script>
+</body>
+</html>
