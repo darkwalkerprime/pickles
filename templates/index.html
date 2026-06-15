@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
@@ -538,7 +538,8 @@
         function updateSkipButtonState() {
             const btn = document.getElementById('btnSkipTurn');
             let isMyTurn = (localTeam === 'both' || localTeam === game.active_team);
-            if (turnHasAttacked || !isMyTurn) { 
+            let waitingForSecondShot = (selectedWeapon === 'shotgun' && shotgunShotsLeft === 1) || (selectedWeapon === 'lupara' && luparaShotsLeft === 1);
+            if ((turnHasAttacked && !waitingForSecondShot) || !isMyTurn) { 
                 btn.classList.add('header-btn-disabled');
             } else { 
                 btn.classList.remove('header-btn-disabled');
@@ -547,7 +548,8 @@
 
         document.getElementById('btnSkipTurn').addEventListener('click', () => {
             let isMyTurn = (localTeam === 'both' || localTeam === game.active_team);
-            if (game.game_over || isPaused || turnHasAttacked || turnEnded || !isMyTurn) return;
+            let waitingForSecondShot = (selectedWeapon === 'shotgun' && shotgunShotsLeft === 1) || (selectedWeapon === 'lupara' && luparaShotsLeft === 1);
+            if (game.game_over || isPaused || (turnHasAttacked && !waitingForSecondShot) || turnEnded || !isMyTurn) return;
             clearInterval(timerInterval); emitNextTurn();
         });
         const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
@@ -1258,9 +1260,11 @@
                         }
                     }
 
-                    selectedWeapon = bestWeapon;
-                    if (game.active_team) teamWeapons[game.active_team] = bestWeapon;
-                    updateWeaponButtonsUI();
+                    if (!waitingForSecondShot) {
+                        selectedWeapon = bestWeapon;
+                        if (game.active_team) teamWeapons[game.active_team] = bestWeapon;
+                        updateWeaponButtonsUI();
+                    }
                     
                     let error = 0;
                     if (aiDifficulty === 'Lehká') error = (Math.random() - 0.5) * 0.5;
