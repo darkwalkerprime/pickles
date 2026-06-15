@@ -185,16 +185,16 @@
     </div>
 
     <div id="mainMenu" class="menu-overlay" style="display: none;">
-        <button class="menu-btn" onclick="selectMode('vs_pc')">1. HrĂˇt proti poÄŤĂ­taÄŤi</button>
-        <button class="menu-btn" onclick="selectMode('vs_friend')">2. HrĂˇt proti kamarĂˇdovi</button>
-        <button class="menu-btn" onclick="selectMode('online')">3. HrĂˇt online</button>
-        <button class="menu-btn" onclick="openSettings('mainMenu')">4. NastavenĂ­</button>
+        <button class="menu-btn" onclick="selectMode('vs_pc')">1. Hrát proti počítači</button>
+        <button class="menu-btn" onclick="selectMode('vs_friend')">2. Hrát proti kamarádovi</button>
+        <button class="menu-btn" onclick="selectMode('online')">3. Hrát online</button>
+        <button class="menu-btn" onclick="openSettings('mainMenu')">4. Nastavení</button>
         <button class="menu-btn" onclick="showMenu('exitMenu')">5. Konec</button>
     </div>
 
     <div id="settingsMenu" class="menu-overlay" style="display: none;">
         <div class="settings-group">
-            <label>Hlasitost efektĹŻ: <span id="sfxVal">100%</span></label>
+            <label>Hlasitost efektů: <span id="sfxVal">100%</span></label>
             <input type="range" id="sfxSlider" min="0" max="100" value="100">
         </div>
         <div class="settings-group">
@@ -206,120 +206,120 @@
             <input type="range" id="brightSlider" min="20" max="150" value="100">
         </div>
         <div class="settings-group" style="flex-direction:row;">
-            <label>OtoÄŤit mĂ­Ĺ™enĂ­:</label>
+            <label>Otočit míření:</label>
             <input type="checkbox" id="invertAimToggle">
         </div>
         <div class="settings-group" style="flex-direction:row;">
             <label>Vibrace:</label>
             <input type="checkbox" id="vibrationToggle" checked>
         </div>
-        <button class="menu-btn" style="background: #555; border-color: #333; margin-top: 5px;" onclick="closeSettings()">ZpÄ›t</button>
+        <button class="menu-btn" style="background: #555; border-color: #333; margin-top: 5px;" onclick="closeSettings()">Zpět</button>
     </div>
 
     <div id="exitMenu" class="menu-overlay" style="display: none;">
         <p class="menu-desc" style="font-size: 18px; line-height: 1.5;">
-            Tahle hra bÄ›ĹľĂ­ v prohlĂ­ĹľeÄŤi.<br>
-            Nelze ji vypnout tlaÄŤĂ­tkem :)<br><br>
-            <strong>Jak odejĂ­t:</strong><br>
-            ProhlĂ­ĹľeÄŤ: zavĹ™i okno s hrou<br>
+            Tahle hra běží v prohlížeči.<br>
+            Nelze ji vypnout tlačítkem :)<br><br>
+            <strong>Jak odejít:</strong><br>
+            Prohlížeč: zavři okno s hrou<br>
             Termux: Ctrl+C
         </p>
-        <button class="menu-btn" style="background: #555; border-color: #333; margin-top: 20px;" onclick="showMenu('mainMenu')">ZpÄ›t do menu</button>
+        <button class="menu-btn" style="background: #555; border-color: #333; margin-top: 20px;" onclick="showMenu('mainMenu')">Zpět do menu</button>
     </div>
 
     <div id="onlineMenu" class="menu-overlay" style="display: none;">
-        <p class="menu-desc">Pokud se pĹ™ipojujeĹˇ k nÄ›komu, zadej jeho IP adresu a port (napĹ™. 192.168.1.10:5000).<br><br>Pokud zaklĂˇdĂˇĹˇ hru ty, nech pole prĂˇzdnĂ©.</p>
+        <p class="menu-desc">Pokud se připojuješ k někomu, zadej jeho IP adresu a port (např. 192.168.1.10:5000).<br><br>Pokud zakládáš hru ty, nech pole prázdné.</p>
         <input type="text" id="ipInput" placeholder="Zadej IP a PORT" class="menu-input">
-        <button class="menu-btn" onclick="submitOnline()">PokraÄŤovat k vĂ˝bÄ›ru mapy</button>
-        <button class="menu-btn" style="background: #555; border-color: #333;" onclick="showMenu('mainMenu')">ZpÄ›t</button>
+        <button class="menu-btn" onclick="submitOnline()">Pokračovat k výběru mapy</button>
+        <button class="menu-btn" style="background: #555; border-color: #333;" onclick="showMenu('mainMenu')">Zpět</button>
     </div>
 
     <div id="mapMenu" class="menu-overlay" style="display: none;">
-        <button class="menu-btn" onclick="selectMap('map1')">RezavĂ˝ vĂ­ÄŤko</button>
+        <button class="menu-btn" onclick="selectMap('map1')">Rezavý víčko</button>
         <button class="menu-btn" onclick="selectMap('map2')">Okurkovej most</button>
-        <button class="menu-btn" onclick="selectMap('map3')">Zelnej pĹ™Ă­kop</button>
-        <button class="menu-btn" onclick="selectMap('map4')">ĹepnĂ˝ Ăştesy</button>
-        <button class="menu-btn" onclick="selectMap('map5')">Arizonskej salĂˇt</button>
-        <button class="menu-btn" style="background: #555; border-color: #333;" onclick="goBackFromMap()">ZpÄ›t</button>
+        <button class="menu-btn" onclick="selectMap('map3')">Zelnej příkop</button>
+        <button class="menu-btn" onclick="selectMap('map4')">Řepný útesy</button>
+        <button class="menu-btn" onclick="selectMap('map5')">Arizonskej salát</button>
+        <button class="menu-btn" style="background: #555; border-color: #333;" onclick="goBackFromMap()">Zpět</button>
     </div>
     
     <div id="teamMenu" class="menu-overlay" style="display: none;">
-        <button class="menu-btn" onclick="selectTeam('team1')">HrĂˇt za SalĂˇtovky</button>
-        <button class="menu-btn" onclick="selectTeam('team2')">HrĂˇt za NakladaÄŤky</button>
-        <button class="menu-btn" style="background: #555; border-color: #333;" onclick="showMenu('mapMenu')">ZpÄ›t</button>
+        <button class="menu-btn" onclick="selectTeam('team1')">Hrát za Salátovky</button>
+        <button class="menu-btn" onclick="selectTeam('team2')">Hrát za Nakladačky</button>
+        <button class="menu-btn" style="background: #555; border-color: #333;" onclick="showMenu('mapMenu')">Zpět</button>
     </div>
 
     <div id="difficultyMenu" class="menu-overlay" style="display: none;">
-        <button class="menu-btn" onclick="startVsPcGame('LehkĂˇ')">LehkĂˇ</button>
-        <button class="menu-btn" onclick="startVsPcGame('StĹ™ednĂ­')">StĹ™ednĂ­</button>
-        <button class="menu-btn" onclick="startVsPcGame('TÄ›ĹľkĂˇ')">TÄ›ĹľkĂˇ</button>
-        <button class="menu-btn" style="background: #555; border-color: #333;" onclick="showMenu('teamMenu')">ZpÄ›t</button>
+        <button class="menu-btn" onclick="startVsPcGame('Lehká')">Lehká</button>
+        <button class="menu-btn" onclick="startVsPcGame('Střední')">Střední</button>
+        <button class="menu-btn" onclick="startVsPcGame('Těžká')">Těžká</button>
+        <button class="menu-btn" style="background: #555; border-color: #333;" onclick="showMenu('teamMenu')">Zpět</button>
     </div>
 
     <div id="exitDialogOverlay" class="menu-overlay" style="display: none; z-index: 200; background: rgba(0,0,0,0.85);">
-        <h2 style="color: #fff; font-size: 30px; margin-bottom: 20px;">Opravdu chceĹˇ ukonÄŤit hru?</h2>
-        <button class="menu-btn" id="btnConfirmExit" style="background: linear-gradient(to bottom, #e74c3c, #c0392b);">NĂˇvrat do menu</button>
+        <h2 style="color: #fff; font-size: 30px; margin-bottom: 20px;">Opravdu chceš ukončit hru?</h2>
+        <button class="menu-btn" id="btnConfirmExit" style="background: linear-gradient(to bottom, #e74c3c, #c0392b);">Návrat do menu</button>
         <button class="menu-btn" id="btnConfirmRestart" style="background: linear-gradient(to bottom, #f39c12, #d35400);">Restartovat</button>
         <button class="menu-btn" style="background: #555; border-color: #333;" onclick="closeExitDialog()">Storno</button>
     </div>
 
     <div id="gameUI" style="display: none;">
         <div id="gameOverScreen">
-            <h2 id="winnerTitle">VĂ­tÄ›zĂ­ TĂ˝m 1!</h2>
-            <p>Hra skonÄŤila</p>
+            <h2 id="winnerTitle">Vítězí Tým 1!</h2>
+            <p>Hra skončila</p>
             <div id="gameOverBtns">
                 <button class="btn-gameover" id="btnRestart">
-                    <span class="icon">đź”„</span>
-                    <span>HrĂˇt znovu</span>
+                    <span class="icon">🔄</span>
+                    <span>Hrát znovu</span>
                 </button>
                 <button class="btn-gameover" id="btnBackToMenu">
-                    <span class="icon">đźŹ </span>
-                    <span>NĂˇvrat do menu</span>
+                    <span class="icon">🏠</span>
+                    <span>Návrat do menu</span>
                 </button>
             </div>
         </div>
 
         <div id="pauseOverlay">
-            <h2>âŹ¸ PAUZA</h2>
-            <button class="menu-btn" onclick="resumeGame()">â–¶ PokraÄŤovat</button>
+            <h2>⏸ PAUZA</h2>
+            <button class="menu-btn" onclick="resumeGame()">▶ Pokračovat</button>
         </div>
 
         <div class="header">
-            <button id="btnPause" class="top-panel-item header-btn header-btn-pause" title="Pauza">âŹ¸</button>
+            <button id="btnPause" class="top-panel-item header-btn header-btn-pause" title="Pauza">⏸</button>
             
             <div class="top-panel-item timer" id="turnTimer">30s</div>
             
             <div class="top-panel-item wind-box" id="windBox">
-                <span class="wind-label">đźŚ¬ď¸Ź</span>
+                <span class="wind-label">🌬️</span>
                 <div class="wind-bar-bg">
                     <div class="wind-bar-center"></div>
                     <div id="windFill" class="wind-fill"></div>
                 </div>
             </div>
 
-            <button id="btnSkipTurn" class="top-panel-item header-btn header-btn-skip" title="PĹ™eskoÄŤit tah">âŹ­</button>
-            <button id="btnSettings" class="top-panel-item header-btn header-btn-settings" title="NastavenĂ­" onclick="openSettings('gameUI')">âš™ď¸Ź</button>
-            <button id="btnMusicToggle" class="top-panel-item header-btn header-btn-music" title="Ztlumit/zapnout hudbu">đź”Š</button>
-            <button id="btnExit" class="top-panel-item" title="UkonÄŤit hru">đź”Ś</button>
+            <button id="btnSkipTurn" class="top-panel-item header-btn header-btn-skip" title="Přeskočit tah">⏭</button>
+            <button id="btnSettings" class="top-panel-item header-btn header-btn-settings" title="Nastavení" onclick="openSettings('gameUI')">⚙️</button>
+            <button id="btnMusicToggle" class="top-panel-item header-btn header-btn-music" title="Ztlumit/zapnout hudbu">🔊</button>
+            <button id="btnExit" class="top-panel-item" title="Ukončit hru">🔌</button>
         </div>
     
         <canvas id="gameCanvas" width="800" height="500"></canvas>
 
         <div id="teamHealthBars">
             <div class="team-hb-wrapper" id="wrapperTeam1">
-                <span class="team-hb-name" style="color: #90ee90;">SalĂˇtovky</span>
+                <span class="team-hb-name" style="color: #90ee90;">Salátovky</span>
                 <div class="hb-bg"><div class="hb-fill" id="hbTeam1" style="background: linear-gradient(to right, #32cd32, #27ae60);"></div></div>
             </div>
             <div class="team-hb-wrapper" id="wrapperTeam2">
                 <div class="hb-bg"><div class="hb-fill" id="hbTeam2" style="background: linear-gradient(to left, #145a32, #90ee90);"></div></div>
-                <span class="team-hb-name" style="color: #27ae60;">NakladaÄŤky</span>
+                <span class="team-hb-name" style="color: #27ae60;">Nakladačky</span>
             </div>
         </div>
 
         <div class="controls">
             <div class="row" style="justify-content: flex-start; gap: 6px;">
-                <button class="btn weapon-btn weapon-selected" id="wpnBazooka">Bazuka <span class="badge">âž</span></button>
-                <button class="btn weapon-btn" id="wpnGrenade">GranĂˇt <span class="badge">âž</span></button>
+                <button class="btn weapon-btn weapon-selected" id="wpnBazooka">Bazuka <span class="badge">∞</span></button>
+                <button class="btn weapon-btn" id="wpnGrenade">Granát <span class="badge">∞</span></button>
                 <button class="btn weapon-btn" id="wpnFrag">Frag <span class="badge">2</span></button>
                 <button class="btn weapon-btn" id="wpnM79">M79 <span class="badge">2</span></button>
                 <button class="btn weapon-btn" id="wpnUzi">Uzi <span class="badge">2</span></button>
@@ -331,17 +331,17 @@
             </div>
 
             <div class="row">
-                <button class="btn btn-switch" id="btnSwitchWorm">PĹ™epnout okurku</button>
+                <button class="btn btn-switch" id="btnSwitchWorm">Přepnout okurku</button>
             </div>
 
             <div class="row">
                 <div class="btn-group">
-                    <button class="btn" id="btnLeft">â—€ ChĹŻze</button>
-                    <button class="btn" id="btnRight">ChĹŻze â–¶</button>
+                    <button class="btn" id="btnLeft">◀ Chůze</button>
+                    <button class="btn" id="btnRight">Chůze ▶</button>
                 </div>
                 <div class="btn-group">
-                    <button class="btn" id="btnUp">MĂ­Ĺ™it â–´</button>
-                    <button class="btn" id="btnDown">MĂ­Ĺ™it â–ľ</button>
+                    <button class="btn" id="btnUp">Mířit ▴</button>
+                    <button class="btn" id="btnDown">Mířit ▾</button>
                 </div>
             </div>
             
@@ -350,7 +350,7 @@
                 <button class="btn btn-shoot" id="btnShoot">PAL!</button>
             </div>
             <div class="row">
-                <button class="btn btn-jump" id="btnJump">SkoÄŤit</button>
+                <button class="btn btn-jump" id="btnJump">Skočit</button>
             </div>
         </div>
     </div>
@@ -400,9 +400,9 @@
         document.getElementById('invertAimToggle').addEventListener('change', (e) => {
             userSettings.invertAim = e.target.checked;
             if (userSettings.invertAim) {
-                document.getElementById('btnUp').innerText = 'MĂ­Ĺ™it â–ľ'; document.getElementById('btnDown').innerText = 'MĂ­Ĺ™it â–´';
+                document.getElementById('btnUp').innerText = 'Mířit ▾'; document.getElementById('btnDown').innerText = 'Mířit ▴';
             } else {
-                document.getElementById('btnUp').innerText = 'MĂ­Ĺ™it â–´'; document.getElementById('btnDown').innerText = 'MĂ­Ĺ™it â–ľ';
+                document.getElementById('btnUp').innerText = 'Mířit ▴'; document.getElementById('btnDown').innerText = 'Mířit ▾';
             }
         });
         document.getElementById('vibrationToggle').addEventListener('change', (e) => { userSettings.vibration = e.target.checked; });
@@ -411,7 +411,7 @@
         let selectedMode = '';
         let targetSocketUrl = ''; let socket = null; let gameLoopRunning = false;
         
-        let aiDifficulty = 'StĹ™ednĂ­';
+        let aiDifficulty = 'Střední';
         let selectedMapName = 'map1';
         let teamWeapons = { team1: 'bazooka', team2: 'bazooka' };
 
@@ -478,7 +478,7 @@
             
             if (selectedMode === 'online') {
                 btnPause.classList.add('header-btn-disabled');
-                btnPause.title = 'Pauza nenĂ­ dostupnĂˇ v online hĹ™e';
+                btnPause.title = 'Pauza není dostupná v online hře';
             } else {
                 btnPause.classList.remove('header-btn-disabled');
                 btnPause.title = 'Pauza';
@@ -521,10 +521,10 @@
             musicMuted = !musicMuted; const btn = document.getElementById('btnMusicToggle');
             if (musicMuted) {
                 if (bgMusic) bgMusic.volume = 0; if (menuMusic) menuMusic.volume = 0;
-                btn.classList.add('muted'); btn.textContent = 'đź”‡';
+                btn.classList.add('muted'); btn.textContent = '🔇';
             } else {
                  if (bgMusic) bgMusic.volume = userSettings.musicVolume / 100; if (menuMusic) menuMusic.volume = userSettings.musicVolume / 100;
-                btn.classList.remove('muted'); btn.textContent = 'đź”Š';
+                btn.classList.remove('muted'); btn.textContent = '🔊';
             }
         });
         function emitNextTurn() { if (!turnEnded) { turnEnded = true; socket.emit('next_turn'); } }
@@ -1022,10 +1022,10 @@
             if (game.game_over) {
                 clearInterval(timerInterval);
                 let winText, winColor, winShadow;
-                if (game.winner === "RemĂ­za") { winText = "RemĂ­za!"; winColor = "#ffffff"; winShadow = "0 5px 15px rgba(255,255,255,0.4)"; } 
-                else if (game.winner === "TĂ˝m 1") { winText = "VĂ­tÄ›zĂ­ SalĂˇtovky!"; winColor = "#90ee90"; winShadow = "0 5px 15px rgba(144,238,144,0.6)"; } 
-                else if (game.winner === "TĂ˝m 2") { winText = "VĂ­tÄ›zĂ­ NakladaÄŤky!"; winColor = "#27ae60"; winShadow = "0 5px 15px rgba(39,174,96,0.6)"; } 
-                else { winText = `VĂ­tÄ›zĂ­ ${game.winner}!`; winColor = "#ff3385"; winShadow = "0 5px 15px rgba(255,51,133,0.6)"; }
+                if (game.winner === "Remíza") { winText = "Remíza!"; winColor = "#ffffff"; winShadow = "0 5px 15px rgba(255,255,255,0.4)"; } 
+                else if (game.winner === "Tým 1") { winText = "Vítězí Salátovky!"; winColor = "#90ee90"; winShadow = "0 5px 15px rgba(144,238,144,0.6)"; } 
+                else if (game.winner === "Tým 2") { winText = "Vítězí Nakladačky!"; winColor = "#27ae60"; winShadow = "0 5px 15px rgba(39,174,96,0.6)"; } 
+                else { winText = `Vítězí ${game.winner}!`; winColor = "#ff3385"; winShadow = "0 5px 15px rgba(255,51,133,0.6)"; }
                 const titleEl = document.getElementById('winnerTitle');
                 titleEl.innerText = winText; titleEl.style.color = winColor; titleEl.style.textShadow = winShadow;
                 document.getElementById('gameOverScreen').style.display = 'flex'; playSound('win_fanfare'); return;
@@ -1195,7 +1195,7 @@
                         if (isVisible) {
                             if (dist < 150 && (ammo.shotgun > 0 || ammo.lupara > 0)) chosenWeapon = ammo.shotgun > 0 ? 'shotgun' : 'lupara';
                             else if (dist < 250 && ammo.uzi > 0) chosenWeapon = 'uzi';
-                            else if (ammo.railgun > 0 && Math.random() > (aiDifficulty === 'TÄ›ĹľkĂˇ' ? 0.1 : 0.4)) chosenWeapon = 'railgun';
+                            else if (ammo.railgun > 0 && Math.random() > (aiDifficulty === 'Těžká' ? 0.1 : 0.4)) chosenWeapon = 'railgun';
                             else if (ammo.plasma > 0) chosenWeapon = 'plasma';
                         } else {
                             if (dist < 200 && ammo.grenade > 0 && Math.random() > 0.3) chosenWeapon = 'grenade';
@@ -1213,7 +1213,7 @@
                         baseArc += (facingRight ? windFactor : -windFactor);
 
                         anglesToTest.push(relAngle - baseArc);
-                        if (aiDifficulty !== 'LehkĂˇ') {
+                        if (aiDifficulty !== 'Lehká') {
                             anglesToTest.push(relAngle - baseArc - 0.3);
                             anglesToTest.push(relAngle - baseArc - 0.6); 
                         }
@@ -1240,15 +1240,15 @@
                     }
 
                     if (!foundClearShot) {
-                        if (!myPhys.hasMovedThisTurnAI && aiDifficulty !== 'LehkĂˇ') {
+                        if (!myPhys.hasMovedThisTurnAI && aiDifficulty !== 'Lehká') {
                             myPhys.hasMovedThisTurnAI = true;
                             aiState = 'MOVING';
-                            aiActionTimer = Date.now() + (aiDifficulty === 'StĹ™ednĂ­' ? 1500 : 2500); 
+                            aiActionTimer = Date.now() + (aiDifficulty === 'Střední' ? 1500 : 2500); 
                             aiKeysPressed.right = Math.random() > 0.5;
                             aiKeysPressed.left = !aiKeysPressed.right;
                             return;
                         } else {
-                            if (aiDifficulty === 'TÄ›ĹľkĂˇ') {
+                            if (aiDifficulty === 'Těžká') {
                                 emitNextTurn();
                                 return;
                             } else {
@@ -1268,8 +1268,8 @@
                     }
                     
                     let error = 0;
-                    if (aiDifficulty === 'LehkĂˇ') error = (Math.random() - 0.5) * 0.5;
-                    if (aiDifficulty === 'StĹ™ednĂ­') error = (Math.random() - 0.5) * 0.15;
+                    if (aiDifficulty === 'Lehká') error = (Math.random() - 0.5) * 0.5;
+                    if (aiDifficulty === 'Střední') error = (Math.random() - 0.5) * 0.15;
 
                     aiTargetAngle = bestAngle + error;
                     if (aiTargetAngle < -1.65) aiTargetAngle = -1.65;
@@ -1278,8 +1278,8 @@
                         aiTargetPower = 0;
                     } else {
                         let idealPower = (distToTarget / 7.5) + 10;
-                        if (aiDifficulty === 'LehkĂˇ') idealPower += (Math.random() - 0.5) * 40;
-                        if (aiDifficulty === 'StĹ™ednĂ­') idealPower += (Math.random() - 0.5) * 15;
+                        if (aiDifficulty === 'Lehká') idealPower += (Math.random() - 0.5) * 40;
+                        if (aiDifficulty === 'Střední') idealPower += (Math.random() - 0.5) * 15;
                         aiTargetPower = Math.min(100, Math.max(10, idealPower));
                     }
 
@@ -1293,7 +1293,7 @@
                     aiState = 'THINKING';
                     aiActionTimer = Date.now() + 300;
                 } else {
-                    if (Math.random() < (aiDifficulty === 'TÄ›ĹľkĂˇ' ? 0.08 : 0.03) && myPhys.isGrounded) {
+                    if (Math.random() < (aiDifficulty === 'Těžká' ? 0.08 : 0.03) && myPhys.isGrounded) {
                         playSound('jump');
                         myPhys.isGrounded = false;
                         myPhys.vx = aiKeysPressed.right ? 2.0 : -2.0; myPhys.vy = -4.8;
@@ -1307,7 +1307,7 @@
                         myWorm.angle += Math.sign(diff) * 0.05;
                         socket.emit('sync_worm', { player_id: game.active_worm_id, x: myWorm.x, y: myWorm.y, angle: myWorm.angle, facing: myWorm.facing, hp: myWorm.hp });
                     } else {
-                        // ZbranÄ›, kterĂ© se nenabĂ­jejĂ­ â€“ vĹľdy power = 0
+                        // Zbraně, které se nenabíjejí – vždy power = 0
                         if (['shotgun', 'lupara', 'uzi', 'plasma', 'm79', 'railgun'].includes(selectedWeapon)) {
                             aiTargetPower = 0;
                         }
@@ -1961,7 +1961,7 @@
 
         function render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            // 1. POZADĂŤ
+            // 1. POZADÍ
             if (bgImageLoaded && bgImage) { ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height); } 
             else {
                 let skyGrad = ctx.createLinearGradient(0, 0, 0, HEIGHT);
@@ -1981,7 +1981,7 @@
                 });
             }
 
-            // 3. ZADNĂŤ VODA
+            // 3. ZADNÍ VODA
             ctx.save();
             ctx.fillStyle = '#081938'; 
             ctx.beginPath(); ctx.moveTo(0, HEIGHT);
@@ -1991,7 +1991,7 @@
             for (let x = 0; x <= WIDTH; x += 15) { if (x === 0) ctx.moveTo(x, getBackWaterY(x)); else ctx.lineTo(x, getBackWaterY(x)); }
             ctx.stroke(); 
             ctx.restore();
-            // 4. TERĂ‰N
+            // 4. TERÉN
             ctx.drawImage(terrainCanvas, 0, 0);
             // 5. MINY, BEDNY, HROBY
             if (game.mines) {
@@ -2037,7 +2037,7 @@
                  });
             }
             
-            // 6. EFEKTY (KouĹ™, Beamy, ÄŚĂˇstice)
+            // 6. EFEKTY (Kouř, Beamy, Částice)
             smokeTrails.forEach(s => { ctx.save(); ctx.globalAlpha = s.alpha; ctx.fillStyle = s.color || '#bbb'; ctx.beginPath(); ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2); ctx.fill(); ctx.restore(); });
             railgunBeams.forEach(b => {
                 ctx.save(); let alpha = b.life / b.maxLife; ctx.shadowBlur = 15; ctx.shadowColor = '#00e5ff';
@@ -2240,7 +2240,7 @@
                 }
             }
             
-            // 8. RYBY (PĹ™ed pĹ™ednĂ­ vodou, ale po terĂ©nu)
+            // 8. RYBY (Před přední vodou, ale po terénu)
             fishes.forEach(f => {
                 let wy = getWaterY(f.x); let fy = wy + f.yOffset;
                 if (fy < HEIGHT) {
@@ -2254,7 +2254,7 @@
                     ctx.restore();
                 }
             });
-            // 9. POTĂPÄšJĂŤCĂŤ SE OBJEKTY
+            // 9. POTÁPĚJÍCÍ SE OBJEKTY
             sinkingObjects.forEach(obj => {
                 ctx.save(); ctx.translate(obj.x, obj.y); 
                 if (obj.type === 'bazooka') {
@@ -2300,7 +2300,7 @@
                 ctx.restore();
             });
 
-            // 10. PĹEDNĂŤ VODA (PoloprĹŻhlednĂˇ pĹ™es terĂ©n a padajĂ­cĂ­ objekty)
+            // 10. PŘEDNÍ VODA (Poloprůhledná přes terén a padající objekty)
             ctx.save();
             ctx.globalAlpha = 0.65; 
             ctx.fillStyle = '#0f2557'; 
@@ -2315,7 +2315,7 @@
             else ctx.lineTo(x, getWaterY(x)); }
             ctx.stroke(); 
             ctx.restore();
-            // 11. ZĂBLESKY A PROJEKTILY VE VZDUCHU (Nad vodou)
+            // 11. ZÁBLESKY A PROJEKTILY VE VZDUCHU (Nad vodou)
             if (muzzleFlash) {
                 ctx.save();
                 ctx.translate(muzzleFlash.x, muzzleFlash.y); ctx.rotate(muzzleFlash.angle);
@@ -2406,7 +2406,7 @@
                 
                 let badge = btn.querySelector('.badge');
                 if (isInf) {
-                    badge.innerText = 'âž';
+                    badge.innerText = '∞';
                     badge.style.color = '#fff';
                     btn.style.filter = 'none';
                 } else {
