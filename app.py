@@ -101,8 +101,8 @@ def get_initial_state(map_name="map1", mode="vs_friend"):
         "map_name": map_name,
         "mode": mode,
         "wind": random.uniform(-1.0, 1.0),
-        "team1_ammo": { "frag": 10, "m79": 10, "uzi": 10, "shotgun": 20, "lupara": 20, "plasma": 10, "molotov": 10, "railgun": 10 },
-        "team2_ammo": { "frag": 10, "m79": 10, "uzi": 10, "shotgun": 20, "lupara": 20, "plasma": 10, "molotov": 10, "railgun": 10 },
+        "team1_ammo": { "frag": 2, "m79": 2, "uzi": 2, "shotgun": 4, "lupara": 4, "plasma": 2, "molotov": 2, "railgun": 2 },
+        "team2_ammo": { "frag": 2, "m79": 2, "uzi": 2, "shotgun": 4, "lupara": 4, "plasma": 2, "molotov": 2, "railgun": 2 },
         "weapon_used_this_turn": False
     }
 
