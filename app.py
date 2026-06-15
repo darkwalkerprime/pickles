@@ -296,3 +296,4 @@ def handle_restart():
 if __name__ == '__main__':
     threading.Thread(target=airdrop_worker, daemon=True).start()
     socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+    
