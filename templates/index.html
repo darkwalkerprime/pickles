@@ -1054,6 +1054,7 @@
             if (!w || w.hp <= 0) return;
             for (let i = 0; i < game.crates.length; i++) {
                 let c = game.crates[i];
+                if (!c) continue;
                 if (w.x < c.x + 14 && w.x + 20 > c.x && w.y - 25 < c.y + 14 && w.y + 22 > c.y) {
                     playSound('crate_pickup');
                     socket.emit('collect_crate', { crate_id: c.id, worm_id: w_id });
@@ -1387,6 +1388,7 @@
             if (game.crates) {
                 for (let i = game.crates.length - 1; i >= 0; i--) {
                     let c = game.crates[i];
+                    if (!c) continue;
                     let hitGround = checkPixelCollision(c.x + 7, c.y + 14);
                     
                     if (!hitGround) {
@@ -1405,7 +1407,6 @@
             }
             
             if (game.mines) {
-                let minesToExplodeNow = [];
                 for (let i = game.mines.length - 1; i >= 0; i--) {
                     let m = game.mines[i];
                     if (!m) continue;
@@ -1434,19 +1435,17 @@
                         if (elapsed >= 3000) {
                             let mx = m.x + 7; let my = m.y + 14;
                             game.mines.splice(i, 1);
-                            minesToExplodeNow.push({ x: Math.floor(mx), y: Math.floor(my) });
+                            executeExplosion(Math.floor(mx), Math.floor(my), 45, 'mine');
                             continue;
                         }
                     }
                 }
-                minesToExplodeNow.forEach((mPos, idx) => {
-                    setTimeout(() => { executeExplosion(mPos.x, mPos.y, 45, 'mine'); }, idx * 50);
-                });
             }
 
             if (game.graves) {
                 for (let i = game.graves.length - 1; i >= 0; i--) {
                     let g = game.graves[i];
+                    if (!g) continue;
                     if (!checkPixelCollision(g.x + 10, g.y + 22)) { g.y += 2.0; } 
                     else {
                         let groundY = getGroundY(g.x + 10, g.y + 22);
@@ -1812,11 +1811,12 @@
                     let mineHit = false;
                     if (game.mines) {
                         let minesToChain = [];
-                        for (let i = game.mines.length - 1; i >= 0; i--) {
-                            let m = game.mines[i];
+                        for (let j = game.mines.length - 1; j >= 0; j--) {
+                            let m = game.mines[j];
+                            if (!m) continue;
                             if (Math.hypot((m.x + 7) - burnX, (m.y + 7) - burnY) < burnR + 15) {
                                 let mx = m.x + 7; let my = m.y + 14;
-                                game.mines.splice(i, 1);
+                                game.mines.splice(j, 1);
                                 minesToChain.push({ x: mx, y: my });
                                 mineHit = true;
                             }
@@ -1939,6 +1939,7 @@
                 let cratesToExplode = [];
                 for (let i = game.crates.length - 1; i >= 0; i--) {
                     let c = game.crates[i];
+                    if (!c) continue;
                     let dist = Math.hypot((c.x + 7) - bx, (c.y + 7) - by);
                     if (dist < radius + 15) { cratesToExplode.push({ x: c.x + 7, y: c.y + 7 }); game.crates.splice(i, 1); }
                 }
@@ -1947,6 +1948,7 @@
                 if (game.mines) {
                     for (let i = game.mines.length - 1; i >= 0; i--) {
                         let m = game.mines[i];
+                        if (!m) continue;
                         let dist = Math.hypot((m.x + 7) - bx, (m.y + 7) - by);
                         if (dist < radius + 15) { minesToExplode.push({ x: m.x + 7, y: m.y + 14 }); game.mines.splice(i, 1); }
                     }
@@ -2418,7 +2420,8 @@
                     let count = teamAmmo[wpn] || 0;
                     badge.innerText = count;
                     
-                    if (count <= 2) {
+                    let warnLimit = (wpn === 'shotgun' || wpn === 'lupara') ? 4 : 2;
+                    if (count <= warnLimit) {
                         badge.style.color = '#ff3333';
                     } else {
                         badge.style.color = '#fff';
@@ -2581,9 +2584,8 @@
                 shotsLeft--; 
                 if (shotsLeft <= 0) { 
                     clearInterval(autofireInterval);
-                    autofireInterval = null; isAutofiring = false;
+                    autofireInterval = null; isAutofiring = false; checkTurnEndAfterSpecial(); 
                     updateWeaponButtonsUI();
-                    checkTurnEndAfterSpecial(); 
                 }
             }, 65);
         }
@@ -2611,9 +2613,8 @@
                 shotsLeft--; 
                 if (shotsLeft <= 0) { 
                     clearInterval(autofireInterval);
-                    autofireInterval = null; isAutofiring = false;
+                    autofireInterval = null; isAutofiring = false; checkTurnEndAfterSpecial(); 
                     updateWeaponButtonsUI();
-                    checkTurnEndAfterSpecial(); 
                 }
             }, 75);
         }
