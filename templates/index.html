@@ -1405,8 +1405,10 @@
             }
             
             if (game.mines) {
+                let minesToExplodeNow = [];
                 for (let i = game.mines.length - 1; i >= 0; i--) {
                     let m = game.mines[i];
+                    if (!m) continue;
                     let hitGround = checkPixelCollision(m.x + 7, m.y + 14);
                     if (!hitGround) { m.y += 1.5; }
                     
@@ -1432,11 +1434,14 @@
                         if (elapsed >= 3000) {
                             let mx = m.x + 7; let my = m.y + 14;
                             game.mines.splice(i, 1);
-                            executeExplosion(Math.floor(mx), Math.floor(my), 45, 'mine');
+                            minesToExplodeNow.push({ x: Math.floor(mx), y: Math.floor(my) });
                             continue;
                         }
                     }
                 }
+                minesToExplodeNow.forEach((mPos, idx) => {
+                    setTimeout(() => { executeExplosion(mPos.x, mPos.y, 45, 'mine'); }, idx * 50);
+                });
             }
 
             if (game.graves) {
@@ -2421,7 +2426,7 @@
                     
                     if (count <= 0) {
                         btn.style.filter = 'brightness(0.3) grayscale(1)';
-                        if (selectedWeapon === wpn) {
+                        if (selectedWeapon === wpn && !isAutofiring) {
                             selectedWeapon = 'bazooka';
                             if (game.active_team) teamWeapons[game.active_team] = 'bazooka';
                             setTimeout(updateWeaponButtonsUI, 0); 
@@ -2576,7 +2581,9 @@
                 shotsLeft--; 
                 if (shotsLeft <= 0) { 
                     clearInterval(autofireInterval);
-                    autofireInterval = null; isAutofiring = false; checkTurnEndAfterSpecial(); 
+                    autofireInterval = null; isAutofiring = false;
+                    updateWeaponButtonsUI();
+                    checkTurnEndAfterSpecial(); 
                 }
             }, 65);
         }
@@ -2604,7 +2611,9 @@
                 shotsLeft--; 
                 if (shotsLeft <= 0) { 
                     clearInterval(autofireInterval);
-                    autofireInterval = null; isAutofiring = false; checkTurnEndAfterSpecial(); 
+                    autofireInterval = null; isAutofiring = false;
+                    updateWeaponButtonsUI();
+                    checkTurnEndAfterSpecial(); 
                 }
             }, 75);
         }
