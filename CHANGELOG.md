@@ -28,6 +28,6 @@ První verze Pickles
 
 ## [0.1.3] - 2026-06-17
 
-### Fixed
+### Opraveno
 - **Uzi/Plasma – zbraň se nepřepíná na bazuku během střelby** – Přepnutí na bazuku po vystřelení posledního zásobníku nyní proběhne až po dokončení celé dávky, nikoliv hned na začátku střelby.
 - **Simultánní výbuch obou min nezpůsobuje zamrznutí hry** – Miny, které vyprší ve stejném framu, se nyní sbírají do fronty a explodují sekvenčně, čímž se eliminuje kolize splice operací vedoucí k pádu hry.
