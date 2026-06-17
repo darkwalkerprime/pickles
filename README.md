@@ -44,4 +44,6 @@
 | Mapa | Řepný útesy | Robot | Audioknap |
 | Mapa | Arizonskej salát | The Grid Part | pietiX |
 
-Credits: "Design & Direction: DarkwalkerPrime. Code: Gemini + Claude".
+Credits:
+"Design & Direction: DarkwalkerPrime.
+Code: Gemini + Claude".
