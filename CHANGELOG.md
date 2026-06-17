@@ -26,6 +26,12 @@ První verze Pickles
 
 ## [0.1.3] - 2026-06-17
 
-### Opraveno
-- **Uzi/Plasma – zbraň se nepřepíná na bazuku během střelby** – Přepnutí na bazuku po vystřelení posledního zásobníku nyní proběhne až po dokončení celé dávky, nikoliv hned na začátku střelby.
-- **Simultánní výbuch obou min nezpůsobuje zamrznutí hry** – Miny, které vyprší ve stejném framu, se nyní sbírají do fronty a explodují sekvenčně, čímž se eliminuje kolize splice operací vedoucí k pádu hry.
+###  Opravy chyb (Bugfixes)
+
+* **Zobrazení zbraní:** Opravena vizuální chyba, kdy se UI předčasně přepínalo na bazuku při střelbě posledního zásobníku z Uzi nebo Plasmy. Zbraň se nyní přepne zpět na výchozí až po úplném dokončení animace střelby.
+
+* **Stabilita enginu (Zamrzání):** Opraven kritický bug způsobující zamrznutí nebo pád herní smyčky při hromadných explozích. Přidány bezpečnostní pojistky (kontroly na `undefined` objekty) do `executeExplosion` a hlavní smyčky pro korektní zpracování současně zničených entit (miny, bedny, hroby).
+
+###  Vylepšení (Enhancements)
+
+* **UI Munice:** Zvýšen práh pro zobrazení varování o nízkém stavu munice (červené zbarvení odznaku) u vícestranných zbraní (Brokovnice, Lupara) z původních 2 na 4 zbývající náboje.
