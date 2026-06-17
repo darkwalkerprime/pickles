@@ -43,3 +43,5 @@
 | Mapa | Zelnej příkop | Angry Robot III | DSTechnician |
 | Mapa | Řepný útesy | Robot | Audioknap |
 | Mapa | Arizonskej salát | The Grid Part | pietiX |
+
+Credits: "Design & Direction: DarkwalkerPrime. Code: Gemini + Claude".
