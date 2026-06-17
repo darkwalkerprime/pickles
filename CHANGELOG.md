@@ -24,8 +24,6 @@ První verze Pickles
 - Damage všech zbraní snížen na polovinu (bazooka `50 → 25`, granát `65 → 32`, railgun `85 → 42`, mina `50 → 25` atd.)
 - Burn damage molotovu snížen `3 → 1` HP za tick
 
-# Changelog
-
 ## [0.1.3] - 2026-06-17
 
 ### Opraveno
