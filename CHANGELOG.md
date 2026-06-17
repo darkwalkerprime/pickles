@@ -23,3 +23,11 @@ První verze Pickles
 - Munice snížena: frag, M79, uzi, plazma, molotov, railgun `10 → 2`; shotgun, lupara `20 → 4`; bazuka a granát zůstávají neomezené
 - Damage všech zbraní snížen na polovinu (bazooka `50 → 25`, granát `65 → 32`, railgun `85 → 42`, mina `50 → 25` atd.)
 - Burn damage molotovu snížen `3 → 1` HP za tick
+
+# Changelog
+
+## [0.1.3] - 2026-06-17
+
+### Fixed
+- **Uzi/Plasma – zbraň se nepřepíná na bazuku během střelby** – Přepnutí na bazuku po vystřelení posledního zásobníku nyní proběhne až po dokončení celé dávky, nikoliv hned na začátku střelby.
+- **Simultánní výbuch obou min nezpůsobuje zamrznutí hry** – Miny, které vyprší ve stejném framu, se nyní sbírají do fronty a explodují sekvenčně, čímž se eliminuje kolize splice operací vedoucí k pádu hry.
