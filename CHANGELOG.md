@@ -35,3 +35,22 @@ První verze Pickles
 ###  Vylepšení
 
 * **UI Munice:** Zvýšen práh pro zobrazení varování o nízkém stavu munice (červené zbarvení odznaku) u vícestranných zbraní (Brokovnice, Lupara) z původních 2 na 4 zbývající náboje.
+
+## [0.1.4] - 2026-06-18
+
+## Změny: Přidána podpora ovládání pro PC (Myš & Klávesnice)
+
+Hra nyní plně podporuje hraní na počítači. Dosud bylo možné hru ovládat pouze na dotykových zařízeních, ovládací prvky a logika rozhraní ale byly aktualizovány tak, aby plynule reagovaly i na standardní PC periferie.
+
+### ✨ Nové
+* **Podpora myši:** Všechna herní a UI tlačítka na obrazovce nyní reagují na události myši (`mousedown`, `mouseup`, `mouseleave`).
+* **Podpora klávesnice:** Přidáni globální posluchači událostí (`keydown`, `keyup`) pro pohodlné hraní bez nutnosti klikat na UI prvky.
+* **Mapování kláves:**
+    * `Šipky` nebo `W A S D` – Pohyb okurky a míření
+    * `Mezerník (Space)` – Zahájení a ukončení střelby (nabíjení síly)
+    * `Enter` nebo `Shift` – Skok
+    * `Tab` – Přepínání aktivní okurky
+    * `Escape` – Otevření menu / Pauza
+
+### 🔧 Změněno
+* **Klientská logika (`index.html`):** Upravena pomocná funkce `setupBtn` a individuální posluchače událostí u tlačítek střelby, skoku a zbraní. Nyní paralelně obsluhují dotykové (`touchstart`, `touchend`) i myší události tak, aby se na různých zařízeních navzájem neblokovaly a nezpůsobovaly nechtěné dvojité kliky (např. prevence u `Space` a `Enter`).
