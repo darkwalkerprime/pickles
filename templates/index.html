@@ -2374,33 +2374,43 @@
 
         function setupBtn(id, key) {
             const btn = document.getElementById(id);
-            btn.addEventListener('touchstart', (e) => { e.preventDefault(); keysPressed[key] = true; });
-            btn.addEventListener('touchend', () => { keysPressed[key] = false; });
+            const press = (e) => { if(e && e.cancelable) e.preventDefault(); keysPressed[key] = true; };
+            const release = (e) => { if(e && e.cancelable) e.preventDefault(); keysPressed[key] = false; };
+            btn.addEventListener('touchstart', press, { passive: false });
+            btn.addEventListener('touchend', release);
+            btn.addEventListener('mousedown', press);
+            btn.addEventListener('mouseup', release);
+            btn.addEventListener('mouseleave', release);
         }
         setupBtn('btnLeft', 'left'); setupBtn('btnRight', 'right'); setupBtn('btnUp', 'up'); setupBtn('btnDown', 'down');
+        
         document.getElementById('btnSwitchWorm').addEventListener('click', () => {
             let isMyTurn = (localTeam === 'both' || localTeam === game.active_team);
             if (game.game_over || localBullet || isAutofiring || lockWeapons || turnWormLocked || !isMyTurn) return; 
             socket.emit('switch_worm');
         });
-        document.getElementById('btnJump').addEventListener('touchstart', (e) => {
-            e.preventDefault(); 
+
+        const handleJump = (e) => {
+            if(e && e.cancelable) e.preventDefault(); 
             let isMyTurn = (localTeam === 'both' || localTeam === game.active_team);
             if (game.game_over || !isMyTurn) return;
             let w_id = game.active_worm_id; let phys = wormPhysics[w_id];
             if (phys && phys.isGrounded) {
-            
                 playSound('jump'); phys.isGrounded = false;
                 phys.vx = game.worms[w_id].facing === "right" ? 2.0 : -2.0; phys.vy = -4.8; 
                 turnWormLocked = true; 
             }
-        });
+        };
+        document.getElementById('btnJump').addEventListener('touchstart', handleJump, { passive: false });
+        document.getElementById('btnJump').addEventListener('mousedown', handleJump);
+
         const bBaz = document.getElementById('wpnBazooka'); const bGre = document.getElementById('wpnGrenade'); 
         const bFrag = document.getElementById('wpnFrag'); const bMol = document.getElementById('wpnMolotov');
         const bUzi = document.getElementById('wpnUzi');
         const bSho = document.getElementById('wpnShotgun');
         const bLup = document.getElementById('wpnLupara'); const bPla = document.getElementById('wpnPlasma'); 
         const bM79 = document.getElementById('wpnM79'); const bRai = document.getElementById('wpnRailgun');
+        
         function updateWeaponButtonsUI() {
             let teamAmmo = game[game.active_team + "_ammo"] || {};
             function setBtn(btn, wpn, isInf) {
@@ -2453,21 +2463,28 @@
             if (game.active_team) teamWeapons[game.active_team] = wpn;
             updateWeaponButtonsUI();
         }
+
+        const bindWeaponBtn = (btn, wpn) => {
+            const selectWpn = (e) => { if(e && e.cancelable) e.preventDefault(); trySelectWeapon(wpn); };
+            btn.addEventListener('touchstart', selectWpn, { passive: false });
+            btn.addEventListener('mousedown', selectWpn);
+        };
         
-        bBaz.addEventListener('touchstart', (e) => { e.preventDefault(); trySelectWeapon("bazooka"); });
-        bGre.addEventListener('touchstart', (e) => { e.preventDefault(); trySelectWeapon("grenade"); });
-        bFrag.addEventListener('touchstart', (e) => { e.preventDefault(); trySelectWeapon("frag"); });
-        bMol.addEventListener('touchstart', (e) => { e.preventDefault(); trySelectWeapon("molotov"); });
-        bUzi.addEventListener('touchstart', (e) => { e.preventDefault(); trySelectWeapon("uzi"); });
-        bSho.addEventListener('touchstart', (e) => { e.preventDefault(); trySelectWeapon("shotgun"); });
-        bLup.addEventListener('touchstart', (e) => { e.preventDefault(); trySelectWeapon("lupara"); });
-        bPla.addEventListener('touchstart', (e) => { e.preventDefault(); trySelectWeapon("plasma"); });
-        bM79.addEventListener('touchstart', (e) => { e.preventDefault(); trySelectWeapon("m79"); });
-        bRai.addEventListener('touchstart', (e) => { e.preventDefault(); trySelectWeapon("railgun"); });
+        bindWeaponBtn(bBaz, "bazooka");
+        bindWeaponBtn(bGre, "grenade");
+        bindWeaponBtn(bFrag, "frag");
+        bindWeaponBtn(bMol, "molotov");
+        bindWeaponBtn(bUzi, "uzi");
+        bindWeaponBtn(bSho, "shotgun");
+        bindWeaponBtn(bLup, "lupara");
+        bindWeaponBtn(bPla, "plasma");
+        bindWeaponBtn(bM79, "m79");
+        bindWeaponBtn(bRai, "railgun");
 
         const btnShoot = document.getElementById('btnShoot'); const pCont = document.getElementById('pContainer'); const pBar = document.getElementById('pBar');
-        btnShoot.addEventListener('touchstart', (e) => {
-            e.preventDefault(); 
+        
+        const handleShootStart = (e) => {
+            if(e && e.cancelable) e.preventDefault(); 
             let isMyTurn = (localTeam === 'both' || localTeam === game.active_team);
             if (game.game_over || !isMyTurn) return;
             
@@ -2494,9 +2511,9 @@
             currentPower = 0;
             pCont.style.display = 'block'; startChargeSound();
             powerInterval = setInterval(() => { currentPower += 3.5; if (currentPower > 100) currentPower = 100; pBar.style.width = currentPower + '%'; updateChargeSound(currentPower); }, 20);
-        });
-        
-        btnShoot.addEventListener('touchend', () => {
+        };
+
+        const handleShootEnd = (e) => {
             let isMyTurn = (localTeam === 'both' || localTeam === game.active_team);
             if (selectedWeapon === 'uzi' || selectedWeapon === 'plasma' || selectedWeapon === 'shotgun' || selectedWeapon === 'lupara' || selectedWeapon === 'm79' || selectedWeapon === 'railgun' || !isMyTurn) return;
             if (!powerInterval) return; clearInterval(powerInterval); powerInterval = null; stopChargeSound();
@@ -2519,6 +2536,57 @@
             localPendingBullets++;
             socket.emit('client_shoot', { type: selectedWeapon, x: safeMuzzle.x, y: safeMuzzle.y, vx: Math.cos(shootAngle) * finalV, vy: Math.sin(shootAngle) * finalV, angle: shootAngle });
             setTimeout(() => { pCont.style.display = 'none'; }, 200);
+        };
+
+        btnShoot.addEventListener('touchstart', handleShootStart, { passive: false });
+        btnShoot.addEventListener('mousedown', handleShootStart);
+        btnShoot.addEventListener('touchend', handleShootEnd);
+        btnShoot.addEventListener('mouseup', handleShootEnd);
+        btnShoot.addEventListener('mouseleave', (e) => { if (powerInterval) handleShootEnd(e); });
+
+        let isSpacePressed = false;
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName && e.target.tagName.toLowerCase() === 'input') return;
+            switch(e.code) {
+                case 'ArrowLeft': case 'KeyA': keysPressed['left'] = true; break;
+                case 'ArrowRight': case 'KeyD': keysPressed['right'] = true; break;
+                case 'ArrowUp': case 'KeyW': keysPressed['up'] = true; break;
+                case 'ArrowDown': case 'KeyS': keysPressed['down'] = true; break;
+                case 'Space':
+                    e.preventDefault();
+                    if (!isSpacePressed) {
+                        isSpacePressed = true;
+                        handleShootStart(null);
+                    }
+                    break;
+                case 'Enter': case 'ShiftLeft': case 'ShiftRight':
+                    e.preventDefault();
+                    handleJump(null);
+                    break;
+                case 'Tab':
+                    e.preventDefault();
+                    document.getElementById('btnSwitchWorm').click();
+                    break;
+                case 'Escape':
+                    e.preventDefault();
+                    document.getElementById('btnPause').click();
+                    break;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.target.tagName && e.target.tagName.toLowerCase() === 'input') return;
+            switch(e.code) {
+                case 'ArrowLeft': case 'KeyA': keysPressed['left'] = false; break;
+                case 'ArrowRight': case 'KeyD': keysPressed['right'] = false; break;
+                case 'ArrowUp': case 'KeyW': keysPressed['up'] = false; break;
+                case 'ArrowDown': case 'KeyS': keysPressed['down'] = false; break;
+                case 'Space':
+                    e.preventDefault();
+                    isSpacePressed = false;
+                    handleShootEnd(null);
+                    break;
+            }
         });
         
         function fireShotgunDirectly() {
