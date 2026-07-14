@@ -678,6 +678,11 @@
 
         function startChargeSound() {
             try {
+                // Pokud uz nejaky chargeOsc bezi (napr. kvuli duplicitnimu
+                // touchstart+mousedown na stejne stisknuti), nejdriv ho tvrde
+                // zastavime. Jinak by se reference prepsala a stary oscilator
+                // by hral navzdy bez moznosti ho vypnout (bug: zasekle hucemi).
+                if (chargeOsc) { try { chargeOsc.stop(); chargeOsc.disconnect(); } catch(e){} chargeOsc = null; }
                 if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 chargeOsc = audioCtx.createOscillator(); chargeGain = audioCtx.createGain();
                 chargeOsc.type = 'sine'; chargeOsc.frequency.setValueAtTime(260, audioCtx.currentTime); 
@@ -800,7 +805,16 @@
                     isAutofiring = false; shotgunShotsLeft = 2;
                     luparaShotsLeft = 2; lockWeapons = false; turnWormLocked = false; turnHasAttacked = false; turnEnded = false;
                     localPendingBullets = 0; updateSkipButtonState(); molotovInFlight = false; 
-                    
+
+                    // Pokud tah skoncil (napr. vyprsel casovy limit) zatimco hrac
+                    // drzel tlacitko a nabijel vystrel, powerInterval i chargeOsc
+                    // by jinak zustaly bezet na pozadi napořad - odtud bug se
+                    // zaseklym hucenim nabijeni.
+                    if (powerInterval) { clearInterval(powerInterval); powerInterval = null; }
+                    stopChargeSound();
+                    let pContEl = document.getElementById('pContainer');
+                    if (pContEl) pContEl.style.display = 'none';
+
                     selectedWeapon = teamWeapons[state.active_team] || 'bazooka';
                     
                     keysPressed = { left: false, right: false, up: false, down: false };
@@ -2487,7 +2501,13 @@
             if(e && e.cancelable) e.preventDefault(); 
             let isMyTurn = (localTeam === 'both' || localTeam === game.active_team);
             if (game.game_over || !isMyTurn) return;
-            
+
+            // Ochrana proti duplicitnimu spusteni (napr. touchstart nasledovany
+            // synteticnim mousedown na stejny dotyk). Bez tohoto by se druhe
+            // volani prepsalo pres powerInterval i chargeOsc a puvodni beh by
+            // zustal bezet bez reference - proto ten bug se zaseklym hucenim.
+            if (powerInterval) return;
+
             let teamAmmo = game[game.active_team + "_ammo"] || {};
             if (!['bazooka', 'grenade'].includes(selectedWeapon) && (teamAmmo[selectedWeapon] || 0) <= 0) return;
 
