@@ -54,3 +54,23 @@ Hra nyní plně podporuje hraní na počítači. Dosud bylo možné hru ovládat
 
 ### 🔧 Změněno
 * **Klientská logika (`index.html`):** Upravena pomocná funkce `setupBtn` a individuální posluchače událostí u tlačítek střelby, skoku a zbraní. Nyní paralelně obsluhují dotykové (`touchstart`, `touchend`) i myší události tak, aby se na různých zařízeních navzájem neblokovaly a nezpůsobovaly nechtěné dvojité kliky (např. prevence u `Space` a `Enter`).
+
+## [0.1.5] - 2026-07-14
+
+### Bugfix: Paměť předchozích tahů (`app.py`)
+
+**Problém:** Po přepnutí tahu hra vždy zvolila prvního živého červa v pořadí týmu místo toho, se kterým hráč hrál naposledy.
+
+- `find_next_alive_worm()` — nyní nejprve zkusí vrátit naposledy hraného červa daného týmu (pokud je stále naživu); na prvního v pořadí spadne jen když mezitím zemřel.
+- Přidán `last_active_worm` do herního stavu — pro každý tým si pamatuje ID naposledy aktivního červa.
+- `last_active_worm` se aktualizuje na obou místech, kde dochází ke změně `active_worm_id`: `handle_next_turn` (konec tahu) a `handle_switch_worm` (ruční přepnutí).
+
+**Vedlejší oprava:** Celý `app.py` byl uložen v kódování Windows-1250 místo UTF-8, což způsobovalo `SyntaxError` při každém spuštění. Převedeno na čisté UTF-8 (pouze přeznačení kódování, žádná změna logiky).
+
+### Bugfix: Zaseknutý zvuk nabíjení (`index.html`)
+
+**Problém:** Zvuk nabíjení zbraně se občas zasekl v permanentní smyčce, řešitelné jen obnovením stránky.
+
+- `startChargeSound()` — nyní před vytvořením nového oscilátoru vždy nejprve tvrdě zastaví a odpojí případný předchozí běžící (dřív se při dvojím volání reference přepsala a starý oscilátor osaměl bez možnosti ho vypnout).
+- `handleShootStart` — přidána ochrana proti duplicitnímu spuštění (řeší typický spouštěč: `touchstart` + syntetický `mousedown` na jeden dotyk na mobilu).
+- `state_update` handler — při přepnutí tahu se nyní vždy uklidí běžící nabíjecí zvuk i interval (řeší případ, kdy tah skončí, např. vypršením časového limitu, zatímco hráč držel tlačítko a nabíjel výstřel).
