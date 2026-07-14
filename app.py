@@ -103,7 +103,8 @@ def get_initial_state(map_name="map1", mode="vs_friend"):
         "wind": random.uniform(-1.0, 1.0),
         "team1_ammo": { "frag": 2, "m79": 2, "uzi": 2, "shotgun": 4, "lupara": 4, "plasma": 2, "molotov": 2, "railgun": 2 },
         "team2_ammo": { "frag": 2, "m79": 2, "uzi": 2, "shotgun": 4, "lupara": 4, "plasma": 2, "molotov": 2, "railgun": 2 },
-        "weapon_used_this_turn": False
+        "weapon_used_this_turn": False,
+        "last_active_worm": { "team1": "t1_0", "team2": "t2_0" }
     }
 
 game_state = get_initial_state()
@@ -266,12 +267,22 @@ def handle_switch_worm():
             game_state["active_worm_id"] = alive_in_team[next_idx]
         except ValueError:
             game_state["active_worm_id"] = alive_in_team[0]
-            
+
+        game_state.setdefault("last_active_worm", {})[team] = game_state["active_worm_id"]
         emit('state_update', game_state, broadcast=True)
 
 def find_next_alive_worm(team_name):
     alive = [w_id for w_id, w in game_state["worms"].items() if w["team"] == team_name and w["hp"] > 0]
-    return alive[0] if alive else None
+    if not alive:
+        return None
+
+    # Pokud je okurka, se kterou tento tým naposledy hrál, stále naživu, zůstáváme u ní.
+    # Jinak (zemřela) spadneme zpět na první živou v pořadí.
+    last_worm_id = game_state.get("last_active_worm", {}).get(team_name)
+    if last_worm_id in alive:
+        return last_worm_id
+
+    return alive[0]
 
 @socketio.on('next_turn')
 def handle_next_turn():
@@ -284,7 +295,8 @@ def handle_next_turn():
         
         if next_worm:
             game_state["active_worm_id"] = next_worm
-          
+            game_state.setdefault("last_active_worm", {})[game_state["active_team"]] = next_worm
+
         emit('state_update', game_state, broadcast=True)
 
 @socketio.on('restart_game')
@@ -296,4 +308,3 @@ def handle_restart():
 if __name__ == '__main__':
     threading.Thread(target=airdrop_worker, daemon=True).start()
     socketio.run(app, host='0.0.0.0', port=5000, debug=False)
-    
