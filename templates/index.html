@@ -565,7 +565,17 @@
         let particles = [];
         let smokeTrails = []; let muzzleFlash = null; let walkAnimTime = 0; let lastStepSoundTime = 0;
         let wormPhysics = {};
-        
+
+        // Bug fix: na začátku nové hry se občas kvůli opožděnému 'state_update'
+        // ze staré hry (viz race condition mezi client_explosion a
+        // start_new_game/restart_game na serveru) spustí zvuky patřící ještě
+        // staré hře - konkrétně 'win_fanfare' a 'explosion_grave'. Po dobu
+        // NEW_GAME_SOUND_LOCK_MS od přijetí init_state tyto dva zvuky
+        // blokujeme (hudba blokována není). Řešení je čistě klientské a
+        // nezávisí na zavádění game_id.
+        const NEW_GAME_SOUND_LOCK_MS = 1000;
+        let newGameSoundLockUntil = 0;
+
         let isAITurn = false;
         let aiState = 'IDLE'; 
         let aiTargetAngle = 0;
@@ -733,6 +743,7 @@
 
         function bindSocketEvents() {
             socket.on('init_state', (state) => { 
+                newGameSoundLockUntil = Date.now() + NEW_GAME_SOUND_LOCK_MS;
                 game = state; game.graves = []; localBullet = null; if(!game.mines) game.mines = [];
                 molotovInFlight = false; document.getElementById('gameOverScreen').style.display = 'none';
                 
@@ -1042,7 +1053,9 @@
                 else { winText = `Vítězí ${game.winner}!`; winColor = "#ff3385"; winShadow = "0 5px 15px rgba(255,51,133,0.6)"; }
                 const titleEl = document.getElementById('winnerTitle');
                 titleEl.innerText = winText; titleEl.style.color = winColor; titleEl.style.textShadow = winShadow;
-                document.getElementById('gameOverScreen').style.display = 'flex'; playSound('win_fanfare'); return;
+                document.getElementById('gameOverScreen').style.display = 'flex';
+                if (Date.now() >= newGameSoundLockUntil) { playSound('win_fanfare'); }
+                return;
             }
         }
 
@@ -1895,7 +1908,7 @@
                 else if (type === 'grave') snd = 'explosion_grave'; else if (type === 'mine') snd = 'explosion_mine';
                 else if (type === 'crate') { snd = 'explosion_crate'; playSound('crate_fire'); }
                 else if (type === 'debris') snd = 'explosion_debris';
-                playSound(snd);
+                if (!(type === 'grave' && Date.now() < newGameSoundLockUntil)) { playSound(snd); }
             } catch(e) {}
             eraseTerrainCircle(bx, by, radius);
             particles.push({ type: 'explosion_core', x: bx, y: by, vx: 0, vy: 0, radius: radius * 0.2, alpha: 1, fadeSpeed: 0.15, color: (type === 'plasma' || type === 'railgun') ? '#00e5ff' : '#ffffff' });
