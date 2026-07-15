@@ -74,3 +74,12 @@ Hra nyní plně podporuje hraní na počítači. Dosud bylo možné hru ovládat
 - `startChargeSound()` — nyní před vytvořením nového oscilátoru vždy nejprve tvrdě zastaví a odpojí případný předchozí běžící (dřív se při dvojím volání reference přepsala a starý oscilátor osaměl bez možnosti ho vypnout).
 - `handleShootStart` — přidána ochrana proti duplicitnímu spuštění (řeší typický spouštěč: `touchstart` + syntetický `mousedown` na jeden dotyk na mobilu).
 - `state_update` handler — při přepnutí tahu se nyní vždy uklidí běžící nabíjecí zvuk i interval (řeší případ, kdy tah skončí, např. vypršením časového limitu, zatímco hráč držel tlačítko a nabíjel výstřel).
+
+## [0.1.6] - 2026-07-15
+
+### Opraveno
+- **Zvukový bug na začátku nové hry**: efekty `win_fanfare.mp3` a `explosion_grave.mp3` se občas přehrály hned po startu nové hry, ještě než okurky dopadly na zem.
+  - Příčina: `state_update` patřící ještě staré hře (poslední exploze před restartem) mohl kvůli threading race na serveru (`async_mode='threading'`, žádný zámek na `game_state`) dorazit klientovi *po* `init_state` nové hry, takže se zpracoval, jako by patřil té nové.
+  - Řešení: po přijetí `init_state` se na 1000 ms zablokuje přehrávání `win_fanfare` a `explosion_grave` (hudba není dotčena — jede mimo `playSound()`).
+  - Soubor: `index.html` (přidána konstanta `NEW_GAME_SOUND_LOCK_MS` a proměnná `newGameSoundLockUntil`; 3 podmíněná místa: `init_state`, `updateUI()`, `executeExplosion()`).
+  - `app.py` beze změny.
