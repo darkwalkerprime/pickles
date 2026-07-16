@@ -104,3 +104,10 @@ Hra nyní plně podporuje hraní na počítači. Dosud bylo možné hru ovládat
 - Broadcast po prodlevě přepsán z `emit(..., broadcast=True)` na `socketio.emit(...)` — funkčně shodné (odešle všem připojeným), ale nezávisí na zachování Flask request kontextu přes `time.sleep`.
 
 Žádné jiné chování, endpointy ani datové struktury nedotčeny.
+
+## [0.1.8] - 2026-07-16
+
+### Opraveno
+- **Nefungující lékárničky (Zrušené léčení)** – Opraven kritický bug, kdy sebrání lékárničky okurku občas vůbec nevyléčilo. 
+  - **Příčina:** Šlo o síťovou *race condition* způsobenou nedávno přidanou striktní validací HP na serveru (která měla zabránit zmrtvýchvstání). Opožděné pakety z klienta o pohybu či fyzice nesly starou (nižší) hodnotu HP. Server tuto zpožděnou starou hodnotu mylně vyhodnotil jako nově obdržené poškození a čerstvě přičtené zdraví z lékárničky okamžitě smazal.
+  - **Řešení (`app.py`):** Do eventu `collect_crate` byl přidán ochranný časový zámek (`heal_lock_until`). Server nyní u dané okurky po dobu 1 sekundy od vyléčení ignoruje klientské updaty zdraví (`sync_worm`, `client_explosion`), které by HP snižovaly. Klient tak dostane bezpečný prostor pro synchronizaci nového stavu zdraví.
