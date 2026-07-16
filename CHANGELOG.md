@@ -96,20 +96,11 @@ Hra nyní plně podporuje hraní na počítači. Dosud bylo možné hru ovládat
 **Poznámka k mechanikám:**
  * **Léčení (Lékárničky):** Tato oprava nijak nerozbíjí mechaniku sbírání lékárniček (které HP naopak zvyšují). Přičítání HP z beden je totiž řešeno samostatným, plně serverovým eventem (collect_crate), který není závislý na klientských zpožděních.
 
-Krátký, technický changelog přímo do chatu — nejde o samostatný dokument, který by si odnášel mimo konverzaci.
+**Oprava: předčasné přepnutí tahu na padající okurku**
 
-## oprava dvojitého tahu
+- `next_turn` handler teď před přepnutím aktivního hráče čeká 1000 ms (`time.sleep(1.0)`), místo aby přepínal okamžitě.
+- Původní logika přepnutí (výběr týmu, reset `weapon_used_this_turn`, nový `wind`, `find_next_alive_worm`) přesunuta beze změny do nové funkce `_perform_next_turn()`, volané až po prodlevě.
+- Díky prodlevě stihnou doběhnout eventy z fyziky pádu (`sync_worm`, `client_explosion`) a zapsat aktuální `hp` do `game_state` dřív, než se vybírá další aktivní hráč — pokud okurka pádem zemře, `find_next_alive_worm` ji už nevybere a sáhne po jiné živé okurce z týmu.
+- Broadcast po prodlevě přepsán z `emit(..., broadcast=True)` na `socketio.emit(...)` — funkčně shodné (odešle všem připojeným), ale nezávisí na zachování Flask request kontextu přes `time.sleep`.
 
-**Soubor:** `app.py` (server) · `index.html` beze změny
-
-### Opraveno
-- **Přepínání tahů:** server mohl zpracovat dva `next_turn` požadavky těsně po sobě (typicky když je nezávisle na sobě odeslali oba klienti), což způsobilo dvojité přepnutí týmu a efektivně dva tahy za sebou pro jeden tým.
-
-### Přidáno
-- `turn_lock` — zámek proti souběžnému zpracování `next_turn` ve více vláknech
-- `MIN_TURN_SWITCH_INTERVAL = 0.75` s — server zahodí `next_turn`, pokud přišel dřív než 0.75 s po posledním platném přepnutí
-- `turn_id` — čítač inkrementovaný při každém reálně provedeném přepnutí tahu (pro budoucí klientskou validaci)
-- `_last_turn_switch_ts` — interní časová značka posledního přepnutí
-
-### Beze změny
-- `index.html` — klientská ochrana (`turnEnded`) funguje správně, problém byl výhradně na serveru
+Žádné jiné chování, endpointy ani datové struktury nedotčeny.
