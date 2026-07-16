@@ -42,7 +42,7 @@ První verze Pickles
 
 Hra nyní plně podporuje hraní na počítači. Dosud bylo možné hru ovládat pouze na dotykových zařízeních, ovládací prvky a logika rozhraní ale byly aktualizovány tak, aby plynule reagovaly i na standardní PC periferie.
 
-### ✨ Nové
+### Nové
 * **Podpora myši:** Všechna herní a UI tlačítka na obrazovce nyní reagují na události myši (`mousedown`, `mouseup`, `mouseleave`).
 * **Podpora klávesnice:** Přidáni globální posluchači událostí (`keydown`, `keyup`) pro pohodlné hraní bez nutnosti klikat na UI prvky.
 * **Mapování kláves:**
@@ -52,7 +52,7 @@ Hra nyní plně podporuje hraní na počítači. Dosud bylo možné hru ovládat
     * `Tab` – Přepínání aktivní okurky
     * `Escape` – Otevření menu / Pauza
 
-### 🔧 Změněno
+### Změněno
 * **Klientská logika (`index.html`):** Upravena pomocná funkce `setupBtn` a individuální posluchače událostí u tlačítek střelby, skoku a zbraní. Nyní paralelně obsluhují dotykové (`touchstart`, `touchend`) i myší události tak, aby se na různých zařízeních navzájem neblokovaly a nezpůsobovaly nechtěné dvojité kliky (např. prevence u `Space` a `Enter`).
 
 ## [0.1.5] - 2026-07-14
@@ -83,3 +83,33 @@ Hra nyní plně podporuje hraní na počítači. Dosud bylo možné hru ovládat
   - Řešení: po přijetí `init_state` se na 1000 ms zablokuje přehrávání `win_fanfare` a `explosion_grave` (hudba není dotčena — jede mimo `playSound()`).
   - Soubor: `index.html` (přidána konstanta `NEW_GAME_SOUND_LOCK_MS` a proměnná `newGameSoundLockUntil`; 3 podmíněná místa: `init_state`, `updateUI()`, `executeExplosion()`).
   - `app.py` beze změny.
+ 
+## [0.1.7] - 2026-07-16
+    
+### Oprava síťové synchronizace a oživování (Server-side)
+**Opravené chyby (Bug Fixes):**
+ * **Zmrtvýchvstání okurek:** Opravena kritická chyba, která způsobovala, že se mrtvé nebo těžce zraněné okurky po chvíli zhmotnily s původním počtem HP.
+ * **Race condition u brokovnicových zbraní:** Vyřešen problém se synchronizací poškození u zbraní, které střílejí více projektilů najednou (Lupara, S686). Opožděné pakety (kvůli síťové latenci/pingu) už nebudou přepisovat reálný stav serveru staršími údaji.
+**Technické změny v kódu (app.py):**
+ * **Event sync_worm:** Přidána striktní validace příchozího zdraví. Server nyní přijme novou hodnotu HP od klienta pouze za předpokladu, že je *nižší* než hodnota, kterou má server aktuálně uloženou v paměti.
+ * **Event client_explosion:** Změněna logika zpracování hromadného updatu stavu po výbuchu. Server již bezhlavě nepřepisuje celý slovník worms daty ze zpožděného klienta. Místo toho iteruje přes jednotlivé okurky, bezpečně aktualizuje jejich souřadnice (x, y, úhel) a u HP opět kontroluje, zda dochází pouze k jeho poklesu.
+**Poznámka k mechanikám:**
+ * **Léčení (Lékárničky):** Tato oprava nijak nerozbíjí mechaniku sbírání lékárniček (které HP naopak zvyšují). Přičítání HP z beden je totiž řešeno samostatným, plně serverovým eventem (collect_crate), který není závislý na klientských zpožděních.
+
+Krátký, technický changelog přímo do chatu — nejde o samostatný dokument, který by si odnášel mimo konverzaci.
+
+## oprava dvojitého tahu
+
+**Soubor:** `app.py` (server) · `index.html` beze změny
+
+### Opraveno
+- **Přepínání tahů:** server mohl zpracovat dva `next_turn` požadavky těsně po sobě (typicky když je nezávisle na sobě odeslali oba klienti), což způsobilo dvojité přepnutí týmu a efektivně dva tahy za sebou pro jeden tým.
+
+### Přidáno
+- `turn_lock` — zámek proti souběžnému zpracování `next_turn` ve více vláknech
+- `MIN_TURN_SWITCH_INTERVAL = 0.75` s — server zahodí `next_turn`, pokud přišel dřív než 0.75 s po posledním platném přepnutí
+- `turn_id` — čítač inkrementovaný při každém reálně provedeném přepnutí tahu (pro budoucí klientskou validaci)
+- `_last_turn_switch_ts` — interní časová značka posledního přepnutí
+
+### Beze změny
+- `index.html` — klientská ochrana (`turnEnded`) funguje správně, problém byl výhradně na serveru
