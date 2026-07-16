@@ -19,16 +19,6 @@ WORM_NAMES = [
 
 game_state = {}
 
-# Chrání handle_next_turn proti souběžnému zpracování ze dvou vláken
-# (např. když next_turn dorazí téměř současně od obou hráčů/klientů).
-turn_lock = threading.Lock()
-
-# Minimální doba (v sekundách) mezi dvěma platnými přepnutími tahu.
-# Slouží jako pojistka proti duplicitním/souběžným next_turn požadavkům,
-# které by jinak mohly přepnout tah dvakrát za sebou (bug: jeden tým
-# dostane dva tahy v řadě).
-MIN_TURN_SWITCH_INTERVAL = 0.75
-
 def generate_clouds_and_rocks():
     rocks = []
     for _ in range(12):
@@ -114,9 +104,7 @@ def get_initial_state(map_name="map1", mode="vs_friend"):
         "team1_ammo": { "frag": 2, "m79": 2, "uzi": 2, "shotgun": 4, "lupara": 4, "plasma": 2, "molotov": 2, "railgun": 2 },
         "team2_ammo": { "frag": 2, "m79": 2, "uzi": 2, "shotgun": 4, "lupara": 4, "plasma": 2, "molotov": 2, "railgun": 2 },
         "weapon_used_this_turn": False,
-        "last_active_worm": { "team1": "t1_0", "team2": "t2_0" },
-        "turn_id": 0,
-        "_last_turn_switch_ts": 0.0
+        "last_active_worm": { "team1": "t1_0", "team2": "t2_0" }
     }
 
 game_state = get_initial_state()
@@ -171,12 +159,7 @@ def handle_sync_worm(data):
         game_state["worms"][p_id]["y"] = data.get('y')
         game_state["worms"][p_id]["angle"] = data.get('angle')
         game_state["worms"][p_id]["facing"] = data.get('facing')
-        
-        # OCHRANA PROTI OŽIVENÍ: Ignorujeme opožděné pakety z klienta, které mají vyšší HP
-        new_hp = data.get('hp')
-        if new_hp is not None and new_hp < game_state["worms"][p_id]["hp"]:
-            game_state["worms"][p_id]["hp"] = new_hp
-            
+        game_state["worms"][p_id]["hp"] = data.get('hp', game_state["worms"][p_id]["hp"])
         emit('state_update', game_state, broadcast=True, include_self=False)
 
 @socketio.on('client_shoot')
@@ -212,17 +195,7 @@ def handle_client_explosion(data):
 
     updated_worms = data.get('worms')
     if updated_worms:
-        # OCHRANA PROTI OŽIVENÍ: Nemůžeme jen tak přepsat celý dictionary.
-        # Bezpečně aktualizujeme pouze data a dovolíme HP pouze klesnout.
-        for w_id, w_data in updated_worms.items():
-            if w_id in game_state["worms"]:
-                if "hp" in w_data and w_data["hp"] < game_state["worms"][w_id]["hp"]:
-                    game_state["worms"][w_id]["hp"] = w_data["hp"]
-                
-                if "x" in w_data: game_state["worms"][w_id]["x"] = w_data["x"]
-                if "y" in w_data: game_state["worms"][w_id]["y"] = w_data["y"]
-                if "angle" in w_data: game_state["worms"][w_id]["angle"] = w_data["angle"]
-                if "facing" in w_data: game_state["worms"][w_id]["facing"] = w_data["facing"]
+        game_state["worms"] = updated_worms
 
     game_state["rocks"] = data.get('rocks', game_state["rocks"])
     game_state["crates"] = data.get('crates', game_state["crates"])
@@ -311,37 +284,36 @@ def find_next_alive_worm(team_name):
 
     return alive[0]
 
+def _perform_next_turn():
+    if game_state["game_over"]:
+        return
+
+    game_state["active_team"] = "team2" if game_state["active_team"] == "team1" else "team1"
+    game_state["weapon_used_this_turn"] = False
+    next_worm = find_next_alive_worm(game_state["active_team"])
+
+    game_state["wind"] = random.uniform(-1.0, 1.0)
+
+    if next_worm:
+        game_state["active_worm_id"] = next_worm
+        game_state.setdefault("last_active_worm", {})[game_state["active_team"]] = next_worm
+
+    socketio.emit('state_update', game_state)
+
 @socketio.on('next_turn')
 def handle_next_turn():
-    with turn_lock:
-        if game_state["game_over"]:
-            return
-
-        # Ochrana proti duplicitním/souběžným next_turn požadavkům: pokud
-        # k poslednímu skutečnému přepnutí tahu došlo příliš nedávno,
-        # tento požadavek zahodíme. Tím se řeší situace, kdy next_turn
-        # dorazí dvakrát těsně po sobě (např. od obou klientů nezávisle
-        # na sobě), což by jinak přepnulo aktivní tým dvakrát a efektivně
-        # dalo jednomu týmu dva tahy za sebou.
-        now = time.time()
-        last_switch = game_state.get("_last_turn_switch_ts", 0.0)
-        if now - last_switch < MIN_TURN_SWITCH_INTERVAL:
-            return
-
-        game_state["active_team"] = "team2" if game_state["active_team"] == "team1" else "team1"
-        game_state["weapon_used_this_turn"] = False
-        next_worm = find_next_alive_worm(game_state["active_team"])
-
-        game_state["wind"] = random.uniform(-1.0, 1.0)
-
-        if next_worm:
-            game_state["active_worm_id"] = next_worm
-            game_state.setdefault("last_active_worm", {})[game_state["active_team"]] = next_worm
-
-        game_state["turn_id"] = game_state.get("turn_id", 0) + 1
-        game_state["_last_turn_switch_ts"] = now
-
-        emit('state_update', game_state, broadcast=True)
+    if game_state["game_over"]:
+        return
+    # Umělá prodleva mezi tahy: než se přepne aktivní hráč, počkáme,
+    # aby dopadla případná padající okurka (a stihla se vyhodnotit její smrt
+    # ve fyzice na klientovi přes 'client_explosion'/sync). Teprve poté
+    # find_next_alive_worm vybere dalšího hráče, takže mrtvá okurka se
+    # tahu nikdy neujme a tým dostane jiného živého hráče z týmu.
+    # Používáme time.sleep (ne socketio.sleep) — s async_mode='threading'
+    # běží každý event handler ve vlastním vlákně, takže to neblokuje
+    # ostatní klienty, a nezávisí to na tom, zda je nainstalovaný eventlet/gevent.
+    time.sleep(1.0)
+    _perform_next_turn()
 
 @socketio.on('restart_game')
 def handle_restart():
