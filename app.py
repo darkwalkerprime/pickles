@@ -160,15 +160,13 @@ def handle_sync_worm(data):
         game_state["worms"][p_id]["angle"] = data.get('angle')
         game_state["worms"][p_id]["facing"] = data.get('facing')
 
-        # Striktní validace příchozího zdraví: nová hodnota HP od klienta se
-        # přijme, pouze pokud je nižší než ta, kterou má server aktuálně
-        # uloženou v paměti. Zabraňuje to "zmrtvýchvstání" okurek, kdy by
-        # opožděný packet s původním (vyšším) HP přepsal reálný poškozený stav.
-        # Léčení z lékárniček tímto není dotčeno, protože to řeší samostatný
-        # serverový event collect_crate.
+        # Striktní validace příchozího zdraví
         incoming_hp = data.get('hp')
         if incoming_hp is not None and incoming_hp < game_state["worms"][p_id]["hp"]:
-            game_state["worms"][p_id]["hp"] = incoming_hp
+            # Ochrana: ignorujeme zpožděné pakety z klienta bezprostředně po sebrání lékárničky
+            lock_until = game_state["worms"][p_id].get("heal_lock_until", 0)
+            if time.time() > lock_until:
+                game_state["worms"][p_id]["hp"] = incoming_hp
 
         emit('state_update', game_state, broadcast=True, include_self=False)
 
@@ -203,11 +201,6 @@ def handle_client_explosion(data):
     global game_state
     if game_state["game_over"]: return
 
-    # Řešení race condition u zbraní s více projektily (Lupara, S686):
-    # server už bezhlavě nepřepisuje celý slovník worms daty ze zpožděného
-    # klienta. Místo toho iteruje přes jednotlivé okurky, bezpečně
-    # aktualizuje jejich souřadnice (x, y, úhel) a u HP opět kontroluje,
-    # zda dochází pouze k jeho poklesu — stejně jako u sync_worm výše.
     updated_worms = data.get('worms')
     if updated_worms:
         for w_id, w_data in updated_worms.items():
@@ -226,7 +219,10 @@ def handle_client_explosion(data):
 
             incoming_hp = w_data.get('hp')
             if incoming_hp is not None and incoming_hp < current_worm["hp"]:
-                current_worm["hp"] = incoming_hp
+                # Stejná ochrana i pro exploze (kdyby výbuch a sebrání proběhlo v ten samý zpožděný tick)
+                lock_until = current_worm.get("heal_lock_until", 0)
+                if time.time() > lock_until:
+                    current_worm["hp"] = incoming_hp
 
     game_state["rocks"] = data.get('rocks', game_state["rocks"])
     game_state["crates"] = data.get('crates', game_state["crates"])
@@ -268,6 +264,8 @@ def handle_collect_crate(data):
         c_type = crate.get('type', 'health')
         if c_type == "health":
             game_state["worms"][w_id]["hp"] += crate.get('value', 25)
+            # Nastavení časového zámku: na 1 sekundu ignorujeme klientské pakety s nižším HP
+            game_state["worms"][w_id]["heal_lock_until"] = time.time() + 1.0
         else:
             team = game_state["worms"][w_id]["team"]
             ammo_key = f"{team}_ammo"
@@ -307,8 +305,6 @@ def find_next_alive_worm(team_name):
     if not alive:
         return None
 
-    # Pokud je okurka, se kterou tento tým naposledy hrál, stále naživu, zůstáváme u ní.
-    # Jinak (zemřela) spadneme zpět na první živou v pořadí.
     last_worm_id = game_state.get("last_active_worm", {}).get(team_name)
     if last_worm_id in alive:
         return last_worm_id
@@ -335,14 +331,6 @@ def _perform_next_turn():
 def handle_next_turn():
     if game_state["game_over"]:
         return
-    # Umělá prodleva mezi tahy: než se přepne aktivní hráč, počkáme,
-    # aby dopadla případná padající okurka (a stihla se vyhodnotit její smrt
-    # ve fyzice na klientovi přes 'client_explosion'/sync). Teprve poté
-    # find_next_alive_worm vybere dalšího hráče, takže mrtvá okurka se
-    # tahu nikdy neujme a tým dostane jiného živého hráče z týmu.
-    # Používáme time.sleep (ne socketio.sleep) — s async_mode='threading'
-    # běží každý event handler ve vlastním vlákně, takže to neblokuje
-    # ostatní klienty, a nezávisí to na tom, zda je nainstalovaný eventlet/gevent.
     time.sleep(1.0)
     _perform_next_turn()
 
