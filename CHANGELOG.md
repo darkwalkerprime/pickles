@@ -111,3 +111,18 @@ Hra nyní plně podporuje hraní na počítači. Dosud bylo možné hru ovládat
 - **Nefungující lékárničky (Zrušené léčení)** – Opraven kritický bug, kdy sebrání lékárničky okurku občas vůbec nevyléčilo. 
   - **Příčina:** Šlo o síťovou *race condition* způsobenou nedávno přidanou striktní validací HP na serveru (která měla zabránit zmrtvýchvstání). Opožděné pakety z klienta o pohybu či fyzice nesly starou (nižší) hodnotu HP. Server tuto zpožděnou starou hodnotu mylně vyhodnotil jako nově obdržené poškození a čerstvě přičtené zdraví z lékárničky okamžitě smazal.
   - **Řešení (`app.py`):** Do eventu `collect_crate` byl přidán ochranný časový zámek (`heal_lock_until`). Server nyní u dané okurky po dobu 1 sekundy od vyléčení ignoruje klientské updaty zdraví (`sync_worm`, `client_explosion`), které by HP snižovaly. Klient tak dostane bezpečný prostor pro synchronizaci nového stavu zdraví.
+
+## [0.1.9] - 2026-07-17
+
+### Opraveno
+- **Chybějící zámek pro `explosion_mine.mp3` na začátku nové hry** – Doplnění opravy z 0.1.6, na kterou se tehdy zapomnělo u tohoto konkrétního zvuku.
+  - Příčina: stejná jako u `win_fanfare`/`explosion_grave` v 0.1.6 (opožděný `state_update` staré hry dorazí klientovi až po `init_state` nové hry), ale zámek `newGameSoundLockUntil` v `executeExplosion()` tehdy pokrýval jen `type === 'grave'`, nikoli `type === 'mine'`.
+  - Řešení: podmínka v `executeExplosion()` nyní blokuje přehrání i pro `type === 'mine'`, po stejnou dobu `NEW_GAME_SOUND_LOCK_MS` jako u `grave`. Aktualizován i vysvětlující komentář nad `NEW_GAME_SOUND_LOCK_MS`.
+  - Soubor: `index.html` (žádné nové proměnné, jen rozšíření stávající podmínky a komentáře).
+  - `app.py` beze změny.
+
+- **Herní zvuky a hudba pronikající do menu / mezi hrami** – Po ukončení hry (návrat do menu) nebo po jejím restartu mohly dozvučující efekty jako `airdrop.mp3` nebo `molotov_fire.mp3` (smyčka hoření) pokračovat v přehrávání i mimo hru; při ukončení hry během držení tlačítka "PAL!" se stejně choval i zvuk nabíjení zbraně.
+  - Příčina: jednorázové efekty se přehrávají přes `soundCache[type].cloneNode()` uvnitř `playSound()`, takže po zavolání k nim nezůstávala žádná trvalá reference a nešlo je hromadně zastavit. Zvuk nabíjení (`chargeOsc`, Web Audio oscilátor vázaný na tlačítko "PAL!") a smyčka `molotov_fire` neměly při odchodu z hry ani při restartu žádný úklid.
+  - Řešení: přidáno sledované pole `activeClonedSounds` (naplňuje/vyprazdňuje `playSound()` přes `ended`/`error` listenery) a nová funkce `stopAllGameSounds()`, která zastaví všechny sledované klony, smyčku `molotov_fire`, `chargeOsc`/`powerInterval` a skryje ukazatel síly výstřelu. Zavolána při ukončení hry (`btnConfirmExit`), návratu z obrazovky konce hry (`btnBackToMenu`) a na začátku každé nové hry/restartu (`init_state` handler) — takže konec hry i restart nyní vždy umlčí všechny herní zvuky i hudbu dané mapy, a nová hra je znovu spustí od čista.
+  - Soubor: `index.html` (nová proměnná `activeClonedSounds`, nová funkce `stopAllGameSounds()`, 3 nová volací místa; drobná úprava `playSound()` pro sledování klonů).
+  - `app.py` beze změny (oba bugy jsou čistě klientská záležitost přehrávání zvuku).
