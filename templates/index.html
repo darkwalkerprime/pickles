@@ -509,7 +509,7 @@
             game.game_over = true; gameLoopRunning = false; isPaused = false;
             document.getElementById('exitDialogOverlay').style.display = 'none';
             document.getElementById('pauseOverlay').style.display = 'none';
-            if (socket) socket.disconnect(); stopMusic();
+            if (socket) socket.disconnect(); stopMusic(); stopAllGameSounds();
             document.getElementById('gameUI').style.display = 'none'; showMenu('mainMenu'); startMenuMusic();
         });
         document.getElementById('btnConfirmRestart').addEventListener('click', () => {
@@ -569,10 +569,10 @@
         // Bug fix: na začátku nové hry se občas kvůli opožděnému 'state_update'
         // ze staré hry (viz race condition mezi client_explosion a
         // start_new_game/restart_game na serveru) spustí zvuky patřící ještě
-        // staré hře - konkrétně 'win_fanfare' a 'explosion_grave'. Po dobu
-        // NEW_GAME_SOUND_LOCK_MS od přijetí init_state tyto dva zvuky
-        // blokujeme (hudba blokována není). Řešení je čistě klientské a
-        // nezávisí na zavádění game_id.
+        // staré hře - konkrétně 'win_fanfare', 'explosion_grave' a
+        // 'explosion_mine'. Po dobu NEW_GAME_SOUND_LOCK_MS od přijetí
+        // init_state tyto zvuky blokujeme (hudba blokována není). Řešení je
+        // čistě klientské a nezávisí na zavádění game_id.
         const NEW_GAME_SOUND_LOCK_MS = 1000;
         let newGameSoundLockUntil = 0;
 
@@ -632,6 +632,14 @@
         let audioCtx = null; let chargeOsc = null;
         let chargeGain = null;
         const soundCache = {};
+        // Bug fix: klonované instance z playSound() (viz cloneNode() níže) po
+        // sobě dřív nenechávaly žádnou referenci, takže dozvučující herní
+        // efekt (např. 'airdrop', 'molotov_fire' nabíjení) mohl "propadnout"
+        // až do menu nebo do jiné mapy po ukončení/restartu hry. Sem si
+        // ukládáme referenci na každý právě přehrávaný klon, aby je šlo při
+        // odchodu do menu / restartu hry hromadně tvrdě zastavit (viz
+        // stopAllGameSounds()).
+        let activeClonedSounds = [];
         const soundList = [
             'step', 'jump', 'bounce', 'splash',
             'shoot_bazooka', 'shoot_grenade', 'shoot_uzi', 'shoot_shotgun', 'shoot_molotov', 'shoot_plasma', 'shoot_m79', 'shoot_lupara', 'shoot_railgun', 'shoot_frag',
@@ -680,8 +688,12 @@
                     let clonedAudio = soundCache[type].cloneNode();
                     let baseVol = type.startsWith('shoot_') ? 0.42 : 0.38;
                     if (type === 'molotov_fire') baseVol = 0.5; clonedAudio.volume = baseVol * volFactor;
+                    activeClonedSounds.push(clonedAudio);
+                    const untrack = () => { let idx = activeClonedSounds.indexOf(clonedAudio); if (idx !== -1) activeClonedSounds.splice(idx, 1); };
+                    clonedAudio.addEventListener('ended', untrack);
+                    clonedAudio.addEventListener('error', untrack);
                     let playPromise = clonedAudio.play();
-                    if (playPromise !== undefined) { playPromise.catch(() => { playSynthFallback(type, now); }); }
+                    if (playPromise !== undefined) { playPromise.catch(() => { untrack(); playSynthFallback(type, now); }); }
                 } else { playSynthFallback(type, now); }
             } catch(e) { playSynthFallback(type, now); }
         }
@@ -702,6 +714,30 @@
         }
         function updateChargeSound(powerPercent) { if (chargeOsc && audioCtx) chargeOsc.frequency.setValueAtTime(260 + (powerPercent / 100) * 490, audioCtx.currentTime); }
         function stopChargeSound() { if (chargeOsc) { try { chargeOsc.stop(); chargeOsc.disconnect(); } catch(e){} chargeOsc = null; } }
+
+        // Bug fix: ukončení hry (návrat do menu) i restart hry musí "umlčet"
+        // úplně všechny herní zvuky a hudbu dané mapy, jinak mohl zvuk jako
+        // 'airdrop' nebo 'molotov_fire' (nabíjení palby) doznít až v menu,
+        // nebo prosáknout do nově startované mapy. Voláno z: ukončení hry
+        // (btnConfirmExit), návratu z game-over obrazovky (btnBackToMenu) a
+        // ze začátku každé nové hry / restartu (init_state handler).
+        function stopAllGameSounds() {
+            // Všechny právě dozvučující jednorázové efekty (výstřely, exploze,
+            // airdrop, pickup, atd.) spuštěné přes playSound()/cloneNode().
+            activeClonedSounds.forEach(a => { try { a.pause(); a.currentTime = 0; } catch(e){} });
+            activeClonedSounds = [];
+
+            // Smyčkový zvuk hoření molotova - přehrává se přímo na soundCache
+            // instanci (bez cloneNode), takže ho zastavujeme zvlášť.
+            if (soundCache['molotov_fire']) { try { soundCache['molotov_fire'].pause(); soundCache['molotov_fire'].currentTime = 0; } catch(e){} }
+
+            // Nabíjecí zvuk tlačítka "PAL!" (Web Audio oscilátor) i interval,
+            // který ho pohání a plní ukazatel síly výstřelu.
+            if (powerInterval) { clearInterval(powerInterval); powerInterval = null; }
+            stopChargeSound();
+            let pContEl = document.getElementById('pContainer');
+            if (pContEl) pContEl.style.display = 'none';
+        }
 
         function updateWindDisplay() {
             let wind = game.wind || 0; let fill = document.getElementById('windFill'); let percentage = Math.min(Math.abs(wind) * 50, 50);
@@ -744,6 +780,7 @@
         function bindSocketEvents() {
             socket.on('init_state', (state) => { 
                 newGameSoundLockUntil = Date.now() + NEW_GAME_SOUND_LOCK_MS;
+                stopAllGameSounds();
                 game = state; game.graves = []; localBullet = null; if(!game.mines) game.mines = [];
                 molotovInFlight = false; document.getElementById('gameOverScreen').style.display = 'none';
                 
@@ -1908,7 +1945,7 @@
                 else if (type === 'grave') snd = 'explosion_grave'; else if (type === 'mine') snd = 'explosion_mine';
                 else if (type === 'crate') { snd = 'explosion_crate'; playSound('crate_fire'); }
                 else if (type === 'debris') snd = 'explosion_debris';
-                if (!(type === 'grave' && Date.now() < newGameSoundLockUntil)) { playSound(snd); }
+                if (!((type === 'grave' || type === 'mine') && Date.now() < newGameSoundLockUntil)) { playSound(snd); }
             } catch(e) {}
             eraseTerrainCircle(bx, by, radius);
             particles.push({ type: 'explosion_core', x: bx, y: by, vx: 0, vy: 0, radius: radius * 0.2, alpha: 1, fadeSpeed: 0.15, color: (type === 'plasma' || type === 'railgun') ? '#00e5ff' : '#ffffff' });
@@ -2739,7 +2776,7 @@
             playSound('click');
         });
         document.getElementById('btnBackToMenu').addEventListener('click', () => {
-            stopMusic(); document.getElementById('gameOverScreen').style.display = 'none'; document.getElementById('gameUI').style.display = 'none';
+            stopMusic(); stopAllGameSounds(); document.getElementById('gameOverScreen').style.display = 'none'; document.getElementById('gameUI').style.display = 'none';
             document.querySelectorAll('.menu-overlay').forEach(el => el.style.display = 'none'); document.getElementById('mainMenu').style.display = 'flex'; startMenuMusic();
         });
     </script>
