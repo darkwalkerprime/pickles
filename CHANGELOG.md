@@ -136,3 +136,16 @@ Hra nyní plně podporuje hraní na počítači. Dosud bylo možné hru ovládat
 
 **Beze změny**
 - app.py — s žádnou z oprav nesouvisel, ponechán v původním stavu.
+
+## [0.2.1] - 2026-07-19
+
+### Opraveno
+
+- **Nesprávné párování mapy a pozadí při startu nové hry** (`index.html` – `initTerrain`)
+  Při startu nové hry (na rozdíl od restartu) server pošle dvě zprávy `init_state` za sebou: jednu se starým stavem hned po připojení soketu (`connect`) a druhou se správným novým stavem po zpracování `start_new_game`. Obě spouštěly `initTerrain()`, která ale neměla žádnou ochranu proti tomu, že se obrázek staré mapy dostáhne později než obrázek nové — plátno terénu tak občas přepsala neaktuální mapa, zatímco pozadí (jiný, na reassignmentu proměnné odolný mechanismus) zůstávalo správně. Přidán čítač požadavků `terrainRequestId`, díky kterému se vykreslí vždy jen mapa z posledního (aktuálního) volání a zastaralé asynchronní odpovědi se ignorují.
+
+- **Rychle opakované přehrávání zvuku odrazu (`bounce.mp3`) u granátu/fragu** (`index.html` – fyzika `localBullet` typu `grenade`/`frag`)
+  Po několika odrazech se rychlost granátu ztlumila natolik, že ho gravitace každý snímek znovu vtlačila do stejného pixelu terénu, ze kterého se právě odrazil. Kód to vyhodnocoval jako nový odraz při každém snímku (~60×/s) a při každém přehrál `bounce.mp3`, dokud granát po 1,5 s nevybuchl. Přidán práh rychlosti po odrazu (`< 1.2 px/snímek`): po jeho podkročení se granát označí jako usazený (`settled`) a dál se u něj nevyhodnocuje gravitace ani kolize/odraz — zůstane nehybně ležet na místě dopadu až do exploze. Stejná konvence ("jakmile dosedne na terén, dál se nehýbe") se v souboru už používala pro pád beden a min.
+
+### Files changed
+- `index.html`
