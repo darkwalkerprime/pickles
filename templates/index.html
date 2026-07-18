@@ -1160,6 +1160,19 @@
             return { x: ex, y: ey };
         }
 
+        function getWormSurfaceBouncePoint(x, y, vx, vy, wormId) {
+            let w = game.worms[wormId];
+            if (!w) return { x: x, y: y };
+            let margin = 1;
+            let left = w.x, right = w.x + 20, top = w.y - 25, bottom = w.y + 22;
+            let distLeft = x - left, distRight = right - x, distTop = y - top, distBottom = bottom - y;
+            let minDist = Math.min(distLeft, distRight, distTop, distBottom);
+            if (minDist === distTop) return { x: x, y: top - margin };
+            if (minDist === distBottom) return { x: x, y: bottom + margin };
+            if (minDist === distLeft) return { x: left - margin, y: y };
+            return { x: right + margin, y: y };
+        }
+
         function getSafeMuzzlePosition(startX, startY, angle, maxOffset) {
             let dx = Math.cos(angle);
             let dy = Math.sin(angle); let lastSafeX = startX; let lastSafeY = startY;
@@ -1767,7 +1780,11 @@
                                 } 
                             }, 1500);
                         }
-                        if (checkPixelCollision(localBullet.x, localBullet.y)) {
+                        if (hitWormId) {
+                            playSound('bounce');
+                            let wp = getWormSurfaceBouncePoint(localBullet.x, localBullet.y, localBullet.vx, localBullet.vy, hitWormId);
+                            localBullet.x = wp.x; localBullet.y = wp.y; localBullet.vx *= -0.5; localBullet.vy *= -0.4; localBullet.vx *= 0.8;
+                        } else if (checkPixelCollision(localBullet.x, localBullet.y)) {
                             playSound('bounce');
                             let ep = getSurfaceExplosionPoint(localBullet.x, localBullet.y, localBullet.vx, localBullet.vy);
                             localBullet.x = ep.x; localBullet.y = ep.y; localBullet.vx *= -0.5; localBullet.vy *= -0.4; localBullet.vx *= 0.8;
@@ -2057,9 +2074,11 @@
             ctx.fillStyle = '#081938'; 
             ctx.beginPath(); ctx.moveTo(0, HEIGHT);
             for (let x = 0; x <= WIDTH; x += 15) { ctx.lineTo(x, getBackWaterY(x)); }
+            ctx.lineTo(WIDTH, getBackWaterY(WIDTH));
             ctx.lineTo(WIDTH, HEIGHT); ctx.closePath(); ctx.fill();
             ctx.strokeStyle = 'rgba(100, 150, 200, 0.4)'; ctx.lineWidth = 2; ctx.beginPath();
             for (let x = 0; x <= WIDTH; x += 15) { if (x === 0) ctx.moveTo(x, getBackWaterY(x)); else ctx.lineTo(x, getBackWaterY(x)); }
+            ctx.lineTo(WIDTH, getBackWaterY(WIDTH));
             ctx.stroke(); 
             ctx.restore();
             // 4. TERÉN
@@ -2378,12 +2397,14 @@
             ctx.beginPath(); ctx.moveTo(0, HEIGHT);
             for (let x = 0; x <= WIDTH; x += 15) { ctx.lineTo(x, getWaterY(x));
             }
+            ctx.lineTo(WIDTH, getWaterY(WIDTH));
             ctx.lineTo(WIDTH, HEIGHT); ctx.closePath(); ctx.fill();
             
             ctx.globalAlpha = 0.85;
             ctx.strokeStyle = 'rgba(200, 230, 255, 0.5)'; ctx.lineWidth = 2; ctx.beginPath();
             for (let x = 0; x <= WIDTH; x += 15) { if (x === 0) ctx.moveTo(x, getWaterY(x));
             else ctx.lineTo(x, getWaterY(x)); }
+            ctx.lineTo(WIDTH, getWaterY(WIDTH));
             ctx.stroke(); 
             ctx.restore();
             // 11. ZÁBLESKY A PROJEKTILY VE VZDUCHU (Nad vodou)
