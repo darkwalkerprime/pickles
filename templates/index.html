@@ -995,11 +995,19 @@
             if (timeLeft <= 5) { timerEl.classList.add('urgent'); } else { timerEl.classList.remove('urgent'); }
         }
 
+        let terrainRequestId = 0; // Zvyšuje se s každým voláním initTerrain, aby šlo poznat "zastaralá" volání
         function initTerrain(mapName, treePositions) {
+            const requestId = ++terrainRequestId; // Toto volání se stává jediným "aktuálním" požadavkem
             const mapImg = new Image();
             mapImg.src = `/static/maps/${mapName}.png`;
-            mapImg.onload = () => { tCtx.clearRect(0, 0, WIDTH, HEIGHT); tCtx.drawImage(mapImg, 0, 0, WIDTH, HEIGHT); updateUI(); };
-            mapImg.onerror = () => { generateFallbackTerrain(treePositions); };
+            mapImg.onload = () => {
+                if (requestId !== terrainRequestId) return; // Mezitím přišlo novější volání (např. druhý init_state) - toto už je zastaralé, ignorujeme
+                tCtx.clearRect(0, 0, WIDTH, HEIGHT); tCtx.drawImage(mapImg, 0, 0, WIDTH, HEIGHT); updateUI();
+            };
+            mapImg.onerror = () => {
+                if (requestId !== terrainRequestId) return; // Stejná ochrana i pro chybu načtení
+                generateFallbackTerrain(treePositions);
+            };
         }
 
         function generateFallbackTerrain(treePositions) {
@@ -1760,7 +1768,6 @@
                             localBullet = null; checkTurnEndAfterSpecial();
                         }
                     } else if (localBullet.type === 'grenade' || localBullet.type === 'frag') {
-                        localBullet.vy += 0.24; localBullet.vx += windForce; 
                         if (!localBullet.timerStarted) {
                             localBullet.timerStarted = true;
                             localBullet.flashState = false; let currentBullet = localBullet;
@@ -1780,14 +1787,23 @@
                                 } 
                             }, 1500);
                         }
-                        if (hitWormId) {
-                            playSound('bounce');
-                            let wp = getWormSurfaceBouncePoint(localBullet.x, localBullet.y, localBullet.vx, localBullet.vy, hitWormId);
-                            localBullet.x = wp.x; localBullet.y = wp.y; localBullet.vx *= -0.5; localBullet.vy *= -0.4; localBullet.vx *= 0.8;
-                        } else if (checkPixelCollision(localBullet.x, localBullet.y)) {
-                            playSound('bounce');
-                            let ep = getSurfaceExplosionPoint(localBullet.x, localBullet.y, localBullet.vx, localBullet.vy);
-                            localBullet.x = ep.x; localBullet.y = ep.y; localBullet.vx *= -0.5; localBullet.vy *= -0.4; localBullet.vx *= 0.8;
+                        // Jakmile rychlost po odrazu klesne pod prah, granát se považuje za usazený a dál se
+                        // nezkoumá na kolize/odraz - jinak by ho gravitace každý snímek znovu zatlačila do
+                        // stejného pixelu povrchu a kód by to bral jako nový odraz (zvuk "bounce" donekonečna,
+                        // dokud nevybuchne). Stejná konvence jako u dopadu beden/min jinde v souboru.
+                        if (!localBullet.settled) {
+                            localBullet.vy += 0.24; localBullet.vx += windForce; 
+                            if (hitWormId) {
+                                playSound('bounce');
+                                let wp = getWormSurfaceBouncePoint(localBullet.x, localBullet.y, localBullet.vx, localBullet.vy, hitWormId);
+                                localBullet.x = wp.x; localBullet.y = wp.y; localBullet.vx *= -0.5; localBullet.vy *= -0.4; localBullet.vx *= 0.8;
+                                if (Math.hypot(localBullet.vx, localBullet.vy) < 1.2) { localBullet.vx = 0; localBullet.vy = 0; localBullet.settled = true; }
+                            } else if (checkPixelCollision(localBullet.x, localBullet.y)) {
+                                playSound('bounce');
+                                let ep = getSurfaceExplosionPoint(localBullet.x, localBullet.y, localBullet.vx, localBullet.vy);
+                                localBullet.x = ep.x; localBullet.y = ep.y; localBullet.vx *= -0.5; localBullet.vy *= -0.4; localBullet.vx *= 0.8;
+                                if (Math.hypot(localBullet.vx, localBullet.vy) < 1.2) { localBullet.vx = 0; localBullet.vy = 0; localBullet.settled = true; }
+                            }
                         }
                     }
                     
