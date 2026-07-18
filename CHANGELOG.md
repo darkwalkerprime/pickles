@@ -126,3 +126,13 @@ Hra nyní plně podporuje hraní na počítači. Dosud bylo možné hru ovládat
   - Řešení: přidáno sledované pole `activeClonedSounds` (naplňuje/vyprazdňuje `playSound()` přes `ended`/`error` listenery) a nová funkce `stopAllGameSounds()`, která zastaví všechny sledované klony, smyčku `molotov_fire`, `chargeOsc`/`powerInterval` a skryje ukazatel síly výstřelu. Zavolána při ukončení hry (`btnConfirmExit`), návratu z obrazovky konce hry (`btnBackToMenu`) a na začátku každé nové hry/restartu (`init_state` handler) — takže konec hry i restart nyní vždy umlčí všechny herní zvuky i hudbu dané mapy, a nová hra je znovu spustí od čista.
   - Soubor: `index.html` (nová proměnná `activeClonedSounds`, nová funkce `stopAllGameSounds()`, 3 nová volací místa; drobná úprava `playSound()` pro sledování klonů).
   - `app.py` beze změny (oba bugy jsou čistě klientská záležitost přehrávání zvuku).
+ 
+## [0.2.0] - 2026-07-18
+
+**Opraveno**
+- Vykreslování vody u pravého okraje mapy (index.html) — vlna se přestávala kreslit 5 px před okrajem plátna a vytvářela dojem neviditelné bariéry držící vodu ve vzduchu. Opraveno u zadní i přední vrstvy vody (výplň i obrysová linka).
+- Granát/frag prolétal skrz okurky (index.html) — chyběla kolizní kontrola s hitboxem okurky, projektil testoval jen terén. Granát/frag se nyní od zasažené okurky odrazí (stejně jako od terénu) a nemůže se v ní zaseknout.
+- Granát/frag hozený přímo pod sebe se teleportoval nad hlavu okurky místo dopadu na zem (index.html) — nový bug způsobený předchozí opravou. Výpočet bodu odrazu couval proti vektoru rychlosti, což při téměř svislém pádu vytáhlo granát vysoko nad hitbox. Nyní se počítá nejbližší hrana hitboxu, takže granát skončí těsně u strany, ze které přiletěl.
+
+**Beze změny**
+- app.py — s žádnou z oprav nesouvisel, ponechán v původním stavu.
