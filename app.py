@@ -14,7 +14,7 @@ HEIGHT = 500
 WORM_NAMES = [
     "Chcankopán", "Kuleštencl", "Mrdojeb", "Řiťopich", "Zabíječ", "Praselyzér", "Krutopřísňák", 
     "Gringo", "Dežodorant", "Falus", "Nedomrd", "Prasopes", "Bobíček", "Honimír", "Kazimír", 
-    "Rakeťák", "Kolmosral", "Uzdichcal", "Lofas", "Bombarďák", "Píčus", "Netáhlo", "Zpíčenec"
+    "Rakeťák", "Kolmosral", "Uzdichcal", "Lofas", "Bombarďák", "Píčus", "Netáhlo", "Zpíčenec", "Kazisvět"
 ]
 
 game_state = {}
