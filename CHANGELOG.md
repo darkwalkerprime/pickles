@@ -149,3 +149,19 @@ Hra nyní plně podporuje hraní na počítači. Dosud bylo možné hru ovládat
 
 ### Files changed
 - `index.html`
+
+## [0.2.2] - 2026-07-19
+  
+Opravena chyba, která způsobovala vystřelování projektilů ze středu zbraně místo z ústí hlavně. 
+Tento bug se projevoval pouze u full-auto zbraní, jako jsou Uzi a Plasma, a to v situacích, kdy stál hráč zády k terénu. Docházelo ke kolizi mezi zpětným rázem zbraně a tělem hráče s terénem za ním.
+Provedená oprava spočívala v úpravě následujícího řádku v souboru index.html
+
+getsafeMuzzlePosition
+
+// Původní verze:
+// for (let i = 0; i <= maxOffset; i++) {
+
+// Opravená verze:
+for (let i = 10; i <= maxOffset; i++) {
+
+Přidáno jméno "Kazisvět" na seznam hratelných okurek v souboru app.py
