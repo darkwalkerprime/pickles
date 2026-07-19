@@ -1184,7 +1184,7 @@
         function getSafeMuzzlePosition(startX, startY, angle, maxOffset) {
             let dx = Math.cos(angle);
             let dy = Math.sin(angle); let lastSafeX = startX; let lastSafeY = startY;
-            for (let i = 0; i <= maxOffset; i++) {
+            for (let i = 10; i <= maxOffset; i++) {
                 let cx = startX + dx * i;
                 let cy = startY + dy * i;
                 if (checkPixelCollision(cx, cy)) { return { x: lastSafeX, y: lastSafeY }; }
