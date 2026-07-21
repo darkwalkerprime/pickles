@@ -561,6 +561,7 @@
         let railgunBeams = []; let activeFires = []; let sinkingObjects = []; let selectedWeapon = "bazooka"; let currentPower = 0;
         let powerInterval = null; let isAutofiring = false; let autofireInterval = null; let shotgunShotsLeft = 2; let luparaShotsLeft = 2;
         let lockWeapons = false;
+        let autoSwitchWeaponTimeout = null; // naplánované zpožděné přepnutí na bazuku při docházející munici (viz updateWeaponButtonsUI)
         let turnWormLocked = false; let turnHasAttacked = false; let turnEnded = false; let localPendingBullets = 0;
         let particles = [];
         let smokeTrails = []; let muzzleFlash = null; let walkAnimTime = 0; let lastStepSoundTime = 0;
@@ -1787,22 +1788,36 @@
                                 } 
                             }, 1500);
                         }
-                        // Jakmile rychlost po odrazu klesne pod prah, granát se považuje za usazený a dál se
-                        // nezkoumá na kolize/odraz - jinak by ho gravitace každý snímek znovu zatlačila do
-                        // stejného pixelu povrchu a kód by to bral jako nový odraz (zvuk "bounce" donekonečna,
-                        // dokud nevybuchne). Stejná konvence jako u dopadu beden/min jinde v souboru.
+                        // Granát se usadí (settled) až po několika po sobě jdoucích odrazech s
+                        // podprahovou rychlostí - ne už po prvním dopadu. Díky tomu má po nárazu
+                        // reálnou šanci ještě sklouznout po svahu nebo se dokutálet, místo aby
+                        // "přilnul" přesně k bodu prvního kontaktu s terénem/okurkou. Jakmile pak
+                        // fyzika sama zůstane v klidu dost dlouho, granát se zamkne stejně jako
+                        // dřív - jinak by ho gravitace každý snímek znovu zatlačila do stejného
+                        // pixelu povrchu a kód by to bral jako nový odraz (zvuk "bounce" donekonečna,
+                        // dokud nevybuchne).
                         if (!localBullet.settled) {
-                            localBullet.vy += 0.24; localBullet.vx += windForce; 
+                            localBullet.vy += 0.24; localBullet.vx += windForce;
+                            let bounced = false;
                             if (hitWormId) {
-                                playSound('bounce');
                                 let wp = getWormSurfaceBouncePoint(localBullet.x, localBullet.y, localBullet.vx, localBullet.vy, hitWormId);
                                 localBullet.x = wp.x; localBullet.y = wp.y; localBullet.vx *= -0.5; localBullet.vy *= -0.4; localBullet.vx *= 0.8;
-                                if (Math.hypot(localBullet.vx, localBullet.vy) < 1.2) { localBullet.vx = 0; localBullet.vy = 0; localBullet.settled = true; }
+                                bounced = true;
                             } else if (checkPixelCollision(localBullet.x, localBullet.y)) {
-                                playSound('bounce');
                                 let ep = getSurfaceExplosionPoint(localBullet.x, localBullet.y, localBullet.vx, localBullet.vy);
                                 localBullet.x = ep.x; localBullet.y = ep.y; localBullet.vx *= -0.5; localBullet.vy *= -0.4; localBullet.vx *= 0.8;
-                                if (Math.hypot(localBullet.vx, localBullet.vy) < 1.2) { localBullet.vx = 0; localBullet.vy = 0; localBullet.settled = true; }
+                                bounced = true;
+                            }
+                            if (bounced && Math.hypot(localBullet.vx, localBullet.vy) < 1.2) {
+                                // Rychlost je už pod prahem - jde jen o "doznívající" kolizi těsně
+                                // před usazením, ne o viditelný odraz, takže se bounce.mp3 nehraje
+                                // (jinak by drnčel několikrát rychle za sebou, dokud restingFrames
+                                // nedoběhne).
+                                localBullet.restingFrames = (localBullet.restingFrames || 0) + 1;
+                                if (localBullet.restingFrames >= 6) { localBullet.vx = 0; localBullet.vy = 0; localBullet.settled = true; }
+                            } else if (bounced) {
+                                playSound('bounce');
+                                localBullet.restingFrames = 0;
                             }
                         }
                     }
@@ -2540,10 +2555,20 @@
                     
                     if (count <= 0) {
                         btn.style.filter = 'brightness(0.3) grayscale(1)';
-                        if (selectedWeapon === wpn && !isAutofiring) {
-                            selectedWeapon = 'bazooka';
-                            if (game.active_team) teamWeapons[game.active_team] = 'bazooka';
-                            setTimeout(updateWeaponButtonsUI, 0); 
+                        if (selectedWeapon === wpn && !isAutofiring && !autoSwitchWeaponTimeout) {
+                            // 1000ms zpoždění, ať přepnutí na bazuku nepůsobí okamžitě/"blbě".
+                            // Re-validace uvnitř: kdyby si hráč mezitím vybral jinou zbraň s municí
+                            // (nebo se munice stihla doplnit, např. bednou), přepnutí se přeskočí.
+                            let pendingWpn = wpn;
+                            autoSwitchWeaponTimeout = setTimeout(() => {
+                                autoSwitchWeaponTimeout = null;
+                                let currentAmmo = game[game.active_team + "_ammo"] || {};
+                                if (selectedWeapon === pendingWpn && !isAutofiring && (currentAmmo[pendingWpn] || 0) <= 0) {
+                                    selectedWeapon = 'bazooka';
+                                    if (game.active_team) teamWeapons[game.active_team] = 'bazooka';
+                                    updateWeaponButtonsUI();
+                                }
+                            }, 1000);
                         }
                     } else {
                         btn.style.filter = 'none';
