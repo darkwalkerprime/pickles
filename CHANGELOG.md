@@ -165,3 +165,56 @@ getsafeMuzzlePosition
 for (let i = 10; i <= maxOffset; i++) {
 
 Přidáno jméno "Kazisvět" na seznam hratelných okurek v souboru app.py
+
+## [0.2.3] - 2026-07-21
+
+# Changelog
+
+## Opraveno
+
+### 1. Granát se lepil na terén místo pádu/kutálení (sticky grenade)
+
+**Soubor:** `index.html`
+**Umístění:** hlavní herní smyčka, fyzika `localBullet` typu `grenade`/`frag` (~ř. 1791–1819)
+
+**Příčina:** Po nárazu se granát přesunul přesně na hraniční bod kolize s terénem a hned v tomtéž snímku se zkontrolovalo, jestli rychlost po odrazu klesla pod práh `1.2`. Vzhledem k silnému tlumení odrazu (`vx *= -0.5 * 0.8`, `vy *= -0.4`) a nízké vstupní rychlosti granátu tahle podmínka téměř vždy platila hned po prvním dotyku s povrchem, takže se `settled = true` nastavilo okamžitě — granát tak nikdy nedostal šanci sklouznout po svahu nebo se dokutálet, a vizuálně to působilo, že "přilnul" přesně k bodu prvního kontaktu.
+
+**Oprava:** Zaveden čítač `restingFrames`. Granát se nyní usadí (`settled = true`) až po **6 po sobě jdoucích odrazech** s podprahovou rychlostí, ne po prvním. Pokud mezi nimi dojde k odrazu s vyšší rychlostí (granát znovu odskočí/pokračuje v pohybu), čítač se vynuluje. Chování při dopadu na okurku (`getWormSurfaceBouncePoint`) i na terén (`getSurfaceExplosionPoint`) je opraveno stejně.
+
+**Dopad:** Granát nyní po dopadu reálně dopadává, kutálí se nebo poskakuje, než se ustálí — stejně jako u ostatních padajících objektů (bedny, miny), jen s vlastní bounce fyzikou.
+
+---
+
+### 2. Zvuk "bounce" se přehrával opakovaně rychle za sebou, když granát/frag dosedal na zem
+
+**Soubor:** `index.html`
+**Umístění:** stejný blok jako oprava č. 1, fyzika `localBullet` typu `grenade`/`frag` (~ř. 1799–1819)
+
+**Příčina:** Vedlejší efekt opravy č. 1. `playSound('bounce')` se volal hned při detekci kolize, ještě před výpočtem nové rychlosti. Posledních až 6 snímků před usazením (`restingFrames`) granát technicky pořád koliduje s terénem každý snímek, i když už jde jen o doznívání, ne o viditelný odraz — zvuk tak drnčel několikrát rychle za sebou.
+
+**Oprava:** `playSound('bounce')` přesunut až za výpočet výsledné rychlosti a podmíněn tím, že rychlost po odrazu je **nad** prahem `1.2` (tedy jde o skutečný, viditelný odraz). Doznívající kolize s podprahovou rychlostí (větev `restingFrames`) zvuk nepřehrávají.
+
+**Dopad:** `bounce.mp3` hraje jen při reálném odskoku granátu, ne opakovaně během posledních snímků těsně před usazením.
+
+---
+
+### 3. Okamžité auto-přepnutí zbraně při docházející munici
+
+**Soubor:** `index.html`
+**Umístění:** `updateWeaponButtonsUI()` → vnitřní `setBtn()`, větev `count <= 0` (~ř. 2553–2569)
+
+**Příčina:** Když aktuálně vybrané zbrani došla munice, kód okamžitě (v tomtéž ticku, `setTimeout(..., 0)`) přepnul `selectedWeapon` na `'bazooka'`. Funkce `updateWeaponButtonsUI` se přitom volá velmi často (po výstřelu, po každém `state_update` ze serveru, po přepnutí tahu atd.), takže přepnutí působilo trhaně a neohlášeně.
+
+**Oprava:**
+- Přidáno zpoždění **1000 ms** (`setTimeout(..., 1000)`) před samotným přepnutím na bazuku.
+- Nová proměnná `autoSwitchWeaponTimeout` hlídá, aby se při opakovaných voláních `updateWeaponButtonsUI()` v průběhu čekání nenaplánovalo více souběžných přepnutí.
+- Při skutečném spuštění zpožděné akce se stav **znovu ověří** (pořád stejná zbraň vybraná, pořád 0 nábojů, není autofiring) — pokud si hráč mezitím vybral jinou zbraň s municí nebo munici doplnil (bedna), přepnutí na bazuku se přeskočí a jeho volbu to nepřebije.
+
+**Dopad:** Auto-přepnutí na bazuku při vyprázdnění munice má nyní 1s prodlevu a zároveň respektuje mezitímní akce hráče.
+
+---
+
+## Beze změny
+
+- `app.py` — všechny opravy byly čistě klientské (fyzika/UI v `index.html`); serverová logika (Flask/SocketIO, herní stav) nebyla dotčena.
+- 
