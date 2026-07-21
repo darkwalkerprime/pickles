@@ -168,8 +168,6 @@ Přidáno jméno "Kazisvět" na seznam hratelných okurek v souboru app.py
 
 ## [0.2.3] - 2026-07-21
 
-# Changelog
-
 ## Opraveno
 
 ### 1. Granát se lepil na terén místo pádu/kutálení (sticky grenade)
